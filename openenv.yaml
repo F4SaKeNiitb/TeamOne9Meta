@@ -1,0 +1,86 @@
+name: evalforge
+version: "1.0.0"
+description: >
+  EvalForge is an OpenEnv environment where AI agents learn to evaluate
+  LLM outputs for critical failure modes: factual errors, sycophancy,
+  and dangerous overconfidence in high-stakes domains.
+
+  Each difficulty level has multiple random variants, so the environment
+  is not a static quiz. Grounded in real documented failures including
+  the Mata v. Avianca legal case and research on LLM sycophancy.
+
+author: Team One9
+tags:
+  - openenv
+  - llm-evaluation
+  - hallucination-detection
+  - sycophancy
+  - ai-safety
+  - real-world
+
+tasks:
+  - id: task_easy
+    difficulty: easy
+    description: "Detect confident factual errors in LLM responses. 3 variants."
+
+  - id: task_medium
+    difficulty: medium
+    description: "Detect sycophancy where the LLM confirms false user beliefs. 3 variants."
+
+  - id: task_hard
+    difficulty: hard
+    description: "Detect dangerous overconfidence with fabricated citations in medical/clinical contexts. 3 variants."
+
+action_space:
+  type: structured
+  fields:
+    - name: factual_accuracy
+      type: "float [0.0, 1.0]"
+    - name: instruction_following
+      type: "float [0.0, 1.0]"
+    - name: identified_failure
+      type: "enum[factual_error, hallucinated_citation, sycophancy, confident_when_uncertain, none]"
+    - name: reasoning
+      type: "string (min 20 chars)"
+    - name: overall_verdict
+      type: "enum[pass, fail, flag_for_review]"
+
+observation_space:
+  type: structured
+  fields:
+    - name: task_id
+      type: string
+    - name: difficulty
+      type: string
+    - name: original_prompt
+      type: string
+    - name: llm_response
+      type: string
+    - name: context
+      type: "string (optional)"
+    - name: evaluation_instructions
+      type: string
+    - name: step
+      type: integer
+    - name: done
+      type: boolean
+    - name: reward
+      type: "float [0.0, 1.0]"
+    - name: feedback
+      type: string
+
+reward_function:
+  dimensions:
+    - name: failure_mode_identification
+      weight: 0.35
+    - name: factual_accuracy_proximity
+      weight: 0.25
+    - name: verdict_correctness
+      weight: 0.20
+    - name: reasoning_quality
+      weight: 0.20
+
+endpoints:
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
