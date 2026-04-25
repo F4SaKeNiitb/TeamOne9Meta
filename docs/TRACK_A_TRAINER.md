@@ -27,13 +27,27 @@ In Colab Cell 1, replace `<YOUR-GH-USER>` with the actual GitHub URL of the repo
 
 ## Hour 0.5–3 · A1 — SFT Phase A
 
+The new bootstrap (`arena.training.sft_bootstrap`) uses a scripted
+expert teacher + 3 baseline policies with stratified sampling, dedup,
+and oracle-keyed submit injection. **It runs inside Colab** — just
+execute Cell 2 and it produces the dataset in 3–5 min.
+
 Run cells **1 → 2 → 3 → 4** in Colab.
 
 **Expected timing:**
-- Cell 1 (install): ~3 min
-- Cell 2 (SFT data gen): ~2 min, writes `data/sft.jsonl`
+- Cell 1 (install + clone): ~3 min — change the `<YOUR-GH-USER>` placeholder to your fork first
+- Cell 2 (SFT data gen): ~3–5 min, writes `data/sft.jsonl`
 - Cell 3 (load Qwen2.5-1.5B 4-bit + LoRA): ~2 min
 - Cell 4 (SFT train, 100 steps): **~25 min on T4**
+
+After Cell 2, read the diagnostics block at the bottom of its output. Healthy:
+- `episodes kept` ≥ 800
+- `rows after dedup` ≥ 350
+- `by action kind` shows mcp / submit / memory / a2a / plan all > 0
+- `tc distribution` has > 60% at `1.00` (most kept episodes solved the task)
+- `per-task row counts` — every task ≥ 20
+
+If any are missing, re-run Cell 2 with `--episodes 2500` (edit inline) or check the diagnostics for warnings.
 
 **Checkpoint at hour 3:**
 ```python
@@ -44,10 +58,13 @@ print(df.tail())
 print(f"loss start={df['loss'].iloc[0]:.3f}  end={df['loss'].iloc[-1]:.3f}")
 ```
 
-✅ PASS: end loss < 0.7 × start loss → continue to A2.
+✅ PASS: end loss in `[0.05, 0.5]` AND start loss > 1.5 → continue to A2.
+   The new dataset is more diverse than the old one, so loss should
+   plateau in `~0.1–0.3`, NOT bottom out near `0.02` (that was
+   memorization of an unbalanced dataset).
 ❌ FAIL: loss is flat → STOP. Ping #team-trainer. Likely fixes:
-- Check `data/sft.jsonl` has >100 rows: `!wc -l data/sft.jsonl`
-- Check the SFT data isn't all rejected by the safety filter
+- Check `sft.jsonl` has > 350 rows: `!wc -l sft.jsonl`
+- Re-run the local bootstrap with a different `--seed`
 - Lower learning rate to 1e-4 in Cell 4
 
 ---
