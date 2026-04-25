@@ -160,15 +160,13 @@ DEFAULT_LIVE_CONFIG: List[Dict[str, str]] = [
     {"label": "claude-haiku-4-5", "model": "claude-haiku-4-5-20251001",
      "api_base": "https://api.anthropic.com/v1",
      "api_key_env": "ANTHROPIC_API_KEY"},
-    # qwen-1.5b-base = the SAME base model your trained LoRA starts from,
-    # served REMOTELY via HF Inference Providers (OpenAI-compatible router
-    # at router.huggingface.co). This proves the trained adapter beats the
-    # zero-shot base on equal footing. Never loads locally — `api_base` is
-    # set so the OpenAI client only ever issues HTTPS calls.
-    {"label": "qwen-1.5b-base",  "model": "Qwen/Qwen2.5-1.5B-Instruct",
-     "api_base": "https://router.huggingface.co/v1",
-     "api_key_env": "HF_TOKEN"},
 ]
+
+# Qwen2.5-1.5B-Instruct is too small for HF's free router or Together to
+# bother hosting. Evaluate it INSIDE Colab (Track A) where the GPU is
+# already loaded, then merge results via scripts/merge_colab_eval.py.
+# That keeps the apples-to-apples base-vs-trained comparison while
+# guaranteeing the laptop never loads weights.
 
 
 def _assert_remote(api_base: Optional[str], label: str) -> None:

@@ -1,5 +1,5 @@
 {
-  "generated_at": 1777121050.448101,
+  "generated_at": 1777121986.5616581,
   "providers": {
     "random": {
       "eval_during": {
@@ -9,17 +9,17 @@
           "n": 1
         },
         "frame_validity": {
-          "mean": 1.0,
+          "mean": 0.8571,
           "std": 0.0,
           "n": 1
         },
         "plan_quality": {
-          "mean": 0.5,
+          "mean": 0.25,
           "std": 0.0,
           "n": 1
         },
         "final_reward": {
-          "mean": 0.5411,
+          "mean": 0.5428,
           "std": 0.0,
           "n": 1
         },
@@ -40,7 +40,7 @@
         },
         "n_episodes": 1
       },
-      "runtime_s": 0.01
+      "runtime_s": 0.03
     },
     "keyword": {
       "eval_during": {
@@ -132,7 +132,7 @@
           "n": 1
         },
         "frame_validity": {
-          "mean": 0.0,
+          "mean": 1.0,
           "std": 0.0,
           "n": 1
         },
@@ -142,7 +142,7 @@
           "n": 1
         },
         "final_reward": {
-          "mean": 0.4766,
+          "mean": 0.454,
           "std": 0.0,
           "n": 1
         },
@@ -163,16 +163,16 @@
         },
         "n_episodes": 1
       },
-      "runtime_s": 23.62,
+      "runtime_s": 3.81,
       "api_calls": {
-        "ok": 12,
-        "api_error": 0,
+        "ok": 0,
+        "api_error": 12,
         "json_error": 0,
         "total": 12,
-        "hit_rate": 1.0,
-        "tokens_in": 9008,
-        "tokens_out": 774,
-        "first_error": null
+        "hit_rate": 0.0,
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "first_error": "AuthenticationError: Error code: 401 - {'error': {'message': \"You didn't provide an API key. You need to provide your API key in an Authorization header using Bearer auth (i.e. Authorization: Bearer YOUR_KEY), or as the password field (with blank username) if you're accessing the API from your browser and are prompted for a username and password. You can obtain an API key from https://platform.openai.com/account/api-keys.\", 'type': 'invalid_request_error', 'param': None, 'code': None}}"
       }
     },
     "claude-haiku-4-5": {
@@ -188,12 +188,12 @@
           "n": 1
         },
         "plan_quality": {
-          "mean": 0.5,
+          "mean": 0.0,
           "std": 0.0,
           "n": 1
         },
         "final_reward": {
-          "mean": 0.5236,
+          "mean": 0.454,
           "std": 0.0,
           "n": 1
         },
@@ -214,16 +214,16 @@
         },
         "n_episodes": 1
       },
-      "runtime_s": 23.66,
+      "runtime_s": 5.03,
       "api_calls": {
-        "ok": 12,
-        "api_error": 0,
+        "ok": 0,
+        "api_error": 12,
         "json_error": 0,
         "total": 12,
-        "hit_rate": 1.0,
-        "tokens_in": 10089,
-        "tokens_out": 1357,
-        "first_error": null
+        "hit_rate": 0.0,
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "first_error": "AuthenticationError: Error code: 401 - {'error': {'code': 'authentication_error', 'message': 'Invalid Anthropic API Key', 'type': 'invalid_request_error', 'param': None}}"
       }
     }
   }
