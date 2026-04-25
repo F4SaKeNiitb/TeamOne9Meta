@@ -35,11 +35,25 @@ from ..tasks import ALL_TASKS
 
 # Single lock to keep log lines from interleaving across worker threads.
 _PRINT_LOCK = threading.Lock()
+# Separate lock around the JSON checkpoint file so concurrent providers
+# can't tear each other's writes.
+_SAVE_LOCK = threading.Lock()
 
 
 def _log(msg: str, err: bool = False) -> None:
     with _PRINT_LOCK:
         print(msg, file=sys.stderr if err else sys.stdout, flush=True)
+
+
+def _save_json_atomic(path: str, payload: Dict[str, Any]) -> None:
+    """Atomic JSON write: write to .tmp then os.replace. Safe under
+    concurrent callers via _SAVE_LOCK."""
+    with _SAVE_LOCK:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(payload, f, indent=2, default=str)
+        os.replace(tmp, path)
 
 
 def _mock_providers() -> Dict[str, Callable]:
@@ -197,51 +211,96 @@ def _assert_remote(api_base: Optional[str], label: str) -> None:
     )
 
 
-def _run_one_provider(label: str, policy: Callable, tasks: List[str],
-                      splits: List[str], seeds: List[int]
-                      ) -> Dict[str, Any]:
-    """Run one provider's full sweep. Safe to call from a worker thread —
-    `run_eval` allocates its own ProtocolArenaEnvironment per call, the
-    OpenAI client is thread-safe, and the policy's `_counters` dict is
-    only read after the worker returns."""
-    _log(f"[frontier] === {label} === "
-         f"{len(tasks)} tasks × {len(seeds)} seeds × {len(splits)} splits  (started)")
-    t0 = time.time()
-    try:
-        r = run_eval(policy, task_ids=tasks, splits=splits, seeds=seeds)
-        r["runtime_s"] = round(time.time() - t0, 2)
+def _attach_api_calls(block: Dict[str, Any], policy: Callable,
+                      label: str) -> None:
+    """Mutate `block` to include the api_calls counter snapshot for this
+    provider, plus log a one-line summary."""
+    counters = getattr(policy, "_counters", None)
+    if counters is None:
+        _log(f"[summary] {label}: local baseline  runtime={block.get('runtime_s','?')}s")
+        return
+    total = counters["api_ok"] + counters["api_err"] + counters["json_err"]
+    hit_rate = counters["api_ok"] / total if total else 0.0
+    block["api_calls"] = {
+        "ok": counters["api_ok"],
+        "api_error": counters["api_err"],
+        "json_error": counters["json_err"],
+        "total": total,
+        "hit_rate": round(hit_rate, 3),
+        "tokens_in": counters["tokens_in"],
+        "tokens_out": counters["tokens_out"],
+        "first_error": counters["first_err"],
+    }
+    _log(f"[summary] {label}: api_ok={counters['api_ok']}  "
+         f"api_err={counters['api_err']}  json_err={counters['json_err']}  "
+         f"hit_rate={hit_rate:.1%}  "
+         f"tokens={counters['tokens_in']}→{counters['tokens_out']}  "
+         f"runtime={block.get('runtime_s','?')}s")
+    if total == 0:
+        _log(f"[summary] {label}: ⚠️  ZERO API calls — check key/network",
+             err=True)
+    elif hit_rate < 0.5:
+        _log(f"[summary] {label}: ⚠️  hit_rate < 50% — mostly fallbacks, "
+             f"NOT a real frontier baseline", err=True)
 
-        counters = getattr(policy, "_counters", None)
-        if counters is not None:
-            total = counters["api_ok"] + counters["api_err"] + counters["json_err"]
-            hit_rate = counters["api_ok"] / total if total else 0.0
-            r["api_calls"] = {
-                "ok": counters["api_ok"],
-                "api_error": counters["api_err"],
-                "json_error": counters["json_err"],
-                "total": total,
-                "hit_rate": round(hit_rate, 3),
-                "tokens_in": counters["tokens_in"],
-                "tokens_out": counters["tokens_out"],
-                "first_error": counters["first_err"],
-            }
-            _log(f"[summary] {label}: api_ok={counters['api_ok']}  "
-                 f"api_err={counters['api_err']}  json_err={counters['json_err']}  "
-                 f"hit_rate={hit_rate:.1%}  "
-                 f"tokens={counters['tokens_in']}→{counters['tokens_out']}  "
-                 f"runtime={r['runtime_s']}s")
-            if total == 0:
-                _log(f"[summary] {label}: ⚠️  ZERO API calls — check key/network",
-                     err=True)
-            elif hit_rate < 0.5:
-                _log(f"[summary] {label}: ⚠️  hit_rate < 50% — mostly fallbacks, "
-                     f"NOT a real frontier baseline", err=True)
-        else:
-            _log(f"[summary] {label}: local baseline  runtime={r['runtime_s']}s")
-        return r
-    except Exception as e:
-        _log(f"[error] {label} crashed: {type(e).__name__}: {e}", err=True)
-        return {"error": f"{type(e).__name__}: {e}"}
+
+def _run_one_provider(label: str, policy: Callable, tasks: List[str],
+                      splits: List[str], seeds: List[int],
+                      cached: Optional[Dict[str, Any]] = None,
+                      save_cb: Optional[Callable[[str, Dict[str, Any]], None]] = None
+                      ) -> Dict[str, Any]:
+    """Run one provider's full sweep, looping per-split so that a crash
+    mid-sweep keeps any already-finished split's results.
+
+    Args:
+      cached: previously-saved block for this provider; any
+        `eval_<split>` keys present here cause that split to be skipped.
+      save_cb(label, block): invoked after each split (and on error)
+        with the latest block snapshot, giving the caller a chance to
+        persist intermediate results.
+
+    Safe to call from a worker thread — `run_eval` allocates its own
+    ProtocolArenaEnvironment per call, the OpenAI client is thread-safe,
+    and the policy's `_counters` dict is mutated only by this worker.
+    """
+    cached = cached or {}
+    block: Dict[str, Any] = {k: v for k, v in cached.items() if k != "error"}
+
+    cached_splits = [s for s in splits if f"eval_{s}" in cached]
+    todo_splits   = [s for s in splits if f"eval_{s}" not in cached]
+    if cached_splits:
+        _log(f"[frontier] === {label} === resuming "
+             f"({len(cached_splits)} cached: {cached_splits} | "
+             f"{len(todo_splits)} todo: {todo_splits})")
+    else:
+        _log(f"[frontier] === {label} === "
+             f"{len(tasks)} tasks × {len(seeds)} seeds × {len(splits)} splits  (started)")
+
+    t0 = time.time()
+    for split in todo_splits:
+        t_split = time.time()
+        try:
+            r = run_eval(policy, task_ids=tasks, splits=[split], seeds=seeds)
+        except Exception as e:
+            _log(f"[error] {label}/{split} crashed: {type(e).__name__}: {e}",
+                 err=True)
+            block["error"] = f"{type(e).__name__}: {e} (during split={split})"
+            block["runtime_s"] = round(time.time() - t0, 2)
+            _attach_api_calls(block, policy, label)
+            if save_cb:
+                save_cb(label, dict(block))
+            return block
+        block.update(r)
+        block["runtime_s"] = round(time.time() - t0, 2)
+        _log(f"[checkpoint] {label}: split={split} done in "
+             f"{round(time.time()-t_split,2)}s — saving partial")
+        if save_cb:
+            save_cb(label, dict(block))
+
+    _attach_api_calls(block, policy, label)
+    if save_cb:
+        save_cb(label, dict(block))
+    return block
 
 
 def main(argv=None) -> int:
@@ -256,6 +315,11 @@ def main(argv=None) -> int:
                     help="Concurrent providers (default 4). Set 1 to run "
                          "serially. Local baselines always run sequentially "
                          "first since they're CPU-bound and fast.")
+    ap.add_argument("--resume", action="store_true",
+                    help="If --out exists, load it and skip any "
+                         "(provider, split) combo already present. "
+                         "Lets you recover from a crash mid-sweep without "
+                         "re-spending API budget on finished work.")
     args = ap.parse_args(argv)
 
     local: Dict[str, Callable] = dict(_mock_providers())
@@ -266,14 +330,44 @@ def main(argv=None) -> int:
         except Exception as e:
             _log(f"[warn] live providers unavailable: {e}", err=True)
 
-    results: Dict[str, Any] = {"generated_at": time.time(), "providers": {}}
+    # Resume: load any existing partial results so we can skip finished splits.
+    cached_providers: Dict[str, Dict[str, Any]] = {}
+    if args.resume and os.path.exists(args.out):
+        try:
+            prior = json.load(open(args.out))
+            cached_providers = prior.get("providers", {}) or {}
+            cached_summary = {
+                lbl: [s for s in args.splits if f"eval_{s}" in (blk or {})]
+                for lbl, blk in cached_providers.items()
+            }
+            _log(f"[resume] loaded {args.out}: {cached_summary}")
+        except Exception as e:
+            _log(f"[resume] failed to load {args.out}: {e} — starting fresh",
+                 err=True)
+
+    results: Dict[str, Any] = {"generated_at": time.time(),
+                               "providers": dict(cached_providers)}
     any_scored = False
     tasks = args.tasks or list(ALL_TASKS.keys())
     order = list(local.keys()) + list(live.keys())  # for stable summary order
 
+    def _save_cb(label: str, block: Dict[str, Any]) -> None:
+        """Persist one provider's latest block + emit stable-ordered JSON.
+        Called after each split completes (or on crash)."""
+        results["providers"][label] = block
+        results["generated_at"] = time.time()
+        ordered = {k: results["providers"][k]
+                   for k in order if k in results["providers"]}
+        _save_json_atomic(args.out, {
+            "generated_at": results["generated_at"],
+            "providers": ordered,
+        })
+
     # 1. Locals run sequentially — fast, CPU-bound, no API limits to spread.
     for label, policy in local.items():
-        r = _run_one_provider(label, policy, tasks, args.splits, args.seeds)
+        r = _run_one_provider(label, policy, tasks, args.splits, args.seeds,
+                              cached=cached_providers.get(label),
+                              save_cb=_save_cb)
         results["providers"][label] = r
         if "error" not in r:
             any_scored = True
@@ -288,7 +382,8 @@ def main(argv=None) -> int:
                                 thread_name_prefix="provider") as ex:
             futures = {
                 ex.submit(_run_one_provider, label, policy,
-                          tasks, args.splits, args.seeds): label
+                          tasks, args.splits, args.seeds,
+                          cached_providers.get(label), _save_cb): label
                 for label, policy in live.items()
             }
             for fut in as_completed(futures):
@@ -303,9 +398,7 @@ def main(argv=None) -> int:
     results["providers"] = {k: results["providers"][k]
                             for k in order if k in results["providers"]}
 
-    os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
-    with open(args.out, "w") as f:
-        json.dump(results, f, indent=2, default=str)
+    _save_json_atomic(args.out, results)
 
     # Final cross-provider summary so a one-glance check tells you
     # which providers actually ran.
