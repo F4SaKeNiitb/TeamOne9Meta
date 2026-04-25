@@ -113,12 +113,16 @@ def main(argv=None) -> int:
               f"cum_terminal={c['cum'][-1]:.3f}  drift@turn={c['drift_turn']}")
 
     plt.figure(figsize=(7.5, 4.5))
-    colors = {"rule_based": "#888", "keyword": "#aaa", "random": "#bbb"}
+    colors = {"rule_based": "#1f77b4", "keyword": "#ff7f0e",
+              "random":     "#7f7f7f", "trained":  "#2ca02c"}
+    styles = {"rule_based": "-",  "keyword": "--",
+              "random":     ":",  "trained":  "-"}
     for label, c in curves:
         x = list(range(len(c["cum"])))
         plt.plot(x, c["cum"], marker="o",
-                 color=colors.get(label, "#1f77b4"),
-                 label=label, linewidth=2)
+                 color=colors.get(label, "#d62728"),
+                 linestyle=styles.get(label, "-"),
+                 label=label, linewidth=2.2)
     if drift_turns:
         dt = min(drift_turns)
         plt.axvline(dt, linestyle="--", color="#d62728", linewidth=1.5,

@@ -113,26 +113,44 @@ def main(argv=None) -> int:
     try:
         import matplotlib.pyplot as plt
         labels = list(results.keys())
-        kept     = [results[l]["kept_after_safety_filter"] for l in labels]
-        unsafe   = [results[l]["unsafe_triggered"]         for l in labels]
-        total    = [results[l]["total_episodes"]           for l in labels]
+        kept   = [results[l]["kept_after_safety_filter"] for l in labels]
+        unsafe = [results[l]["unsafe_triggered"]         for l in labels]
+        total  = [results[l]["total_episodes"]           for l in labels]
         x = range(len(labels))
-        w = 0.28
-        plt.figure(figsize=(7.5, 4.2))
-        plt.bar([i - w for i in x], total,  w, label="total episodes",
-                color="#bbbbbb")
-        plt.bar(list(x),            kept,   w, label="kept (passed safety filter)",
-                color="#2ca02c")
-        plt.bar([i + w for i in x], unsafe, w, label="dropped (unsafe)",
-                color="#d62728")
-        plt.xticks(list(x), labels)
-        plt.ylabel("episode count")
-        plt.title("Fail-closed flywheel — adversarial policy contributes 0 rows")
-        plt.legend(fontsize=9)
-        plt.grid(True, axis="y", alpha=0.3)
+
+        fig, ax = plt.subplots(figsize=(7.8, 4.6))
+        bar_kept   = ax.bar(list(x), kept,   color="#2ca02c",
+                            label="kept (safe → ingested)", edgecolor="white")
+        bar_unsafe = ax.bar(list(x), unsafe, bottom=kept, color="#d62728",
+                            label="dropped (honeypot or injection)",
+                            edgecolor="white")
+
+        for i, (k, u, t) in enumerate(zip(kept, unsafe, total)):
+            if k > 0:
+                ax.text(i, k / 2, f"{k}\nkept",
+                        ha="center", va="center", color="white",
+                        fontsize=11, fontweight="bold")
+            if u > 0:
+                ax.text(i, k + u / 2, f"{u}\ndropped",
+                        ha="center", va="center", color="white",
+                        fontsize=11, fontweight="bold")
+            ax.text(i, t + max(total) * 0.04, f"total = {t}",
+                    ha="center", va="bottom", fontsize=9, color="#444")
+
+        ax.set_xticks(list(x))
+        ax.set_xticklabels(labels, fontsize=11)
+        ax.set_ylabel("episode count", fontsize=11)
+        ax.set_ylim(0, max(total) * 1.18)
+        ax.set_title("Fail-closed flywheel — adversarial policy ingests 0 rows",
+                     fontsize=12, pad=12)
+        ax.legend(loc="lower center", bbox_to_anchor=(0.5, -0.22),
+                  ncol=2, frameon=False, fontsize=10)
+        ax.grid(True, axis="y", alpha=0.25)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
         plt.tight_layout()
         os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
-        plt.savefig(args.out, dpi=150)
+        plt.savefig(args.out, dpi=150, bbox_inches="tight")
         plt.close()
         print(f"[ablation] wrote {args.out}")
     except Exception as e:
