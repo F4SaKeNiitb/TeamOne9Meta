@@ -103,7 +103,8 @@ def build_user_msg(obs: Dict[str, Any]) -> str:
     peers = disc.get("peers", []) or []
 
     tools_brief = "\n".join(
-        f"- {t['server_id']}.{t['name']} v{t.get('version','1')}: {t.get('description','')[:80]}"
+        f"- server_id=\"{t['server_id']}\"  tool=\"{t['name']}\"  "
+        f"v{t.get('version','1')}: {t.get('description','')[:80]}"
         for t in tools
     ) or "(no tools)"
     peers_brief = "\n".join(

@@ -127,12 +127,11 @@ Save the table output. Paste into `README_RESULTS_SECTION.md`.
 # OBS Studio (alt): Scene with browser source pointing at HF Space
 ```
 
-Open these tabs in this exact order (Cmd+1..5):
+Open these tabs in this exact order (Cmd+1..4):
 1. `https://<user>-protocol-arena.hf.space/?task=research_photo_rename&seed=0`
 2. `reports/safety_ablation.png` (preview)
-3. `reports/drift_recovery.png` (preview)
-4. AgentBeats registry screenshot (`reports/agentbeats_registration.png`)
-5. README rendered on GitHub showing the trained-vs-frontier table
+3. README rendered on GitHub showing the trained-vs-frontier table
+4. (Optional, only if Track A trained policy is in `reports/frontier.json`) `reports/drift_recovery.png` regenerated with `--policies rule_based keyword random trained:...`
 
 **The 90-sec script** (read aloud while screen-recording, follow `docs/VIDEO_SCRIPT.md`):
 
@@ -199,13 +198,13 @@ Use Google Slides. Spine from `docs/PITCH.md`.
 - Bottom: "13 tasks × 7 drift classes × fail-closed safety = PROTOCOL-ARENA"
 
 **Slide 2 — Solution (the demo bait)**
-- Side-by-side: `drift_recovery.png` (left) and `safety_ablation.png` (right)
-- One-line caption per plot
-- Center: arrow pointing to the live Space URL with a QR code (use any free QR generator)
+- Hero: `safety_ablation.png` full-width — caption: "Adversarial policy contributes ZERO rows to training data. Fail-closed at collection time."
+- Center-right: arrow pointing to the live Space URL with a QR code (use any free QR generator)
+- (If trained policy adapter landed) inset: `drift_recovery.png` showing trained > rule_based > random post-drift
 
 **Slide 3 — Results (the close)**
 - Top half: 4-column trained-vs-frontier table (paste markdown rendered as image, or recreate as native table)
-- Bottom-left: AgentBeats registry screenshot — caption "Only MCP-drift Green Agent in the registry"
+- Bottom-left: a per-signal breakdown bar (task_correctness, frame_validity, plan_quality) — trained vs gpt-4o-mini vs claude-haiku-4-5
 - Bottom-right: leaderboard score with the formula
 - Footer: 3 URLs (Space, Hub, YouTube) + emails
 
@@ -241,13 +240,11 @@ assert 'frontier_json_sha256' in s['results']
 print('submission.json: OK')
 "
 
-# Verify all artifacts exist:
+# Verify all artifacts exist (drift_recovery.png is OPTIONAL — only if trained policy landed):
 test -f reports/frontier.json && echo "frontier.json OK"
 test -f reports/training_curves.png && echo "training_curves.png OK"
-test -f reports/drift_recovery.png && echo "drift_recovery.png OK"
 test -f reports/safety_ablation.png && echo "safety_ablation.png OK"
 test -f reports/signals_bar.png && echo "signals_bar.png OK"
-test -f reports/agentbeats_registration.png && echo "agentbeats_screenshot OK"
 test -f docs/pitch_deck.pdf && echo "pitch_deck.pdf OK"
 test -f submission.json && echo "submission.json OK"
 

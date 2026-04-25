@@ -52,8 +52,10 @@ replay, OTel/Jaeger fanout, browser spectator.
 
 **Embed plots (in this order):**
 1. **`reports/training_curves.png`** — caption: "Phase B mean episode reward rises across iterations as the agent rolls out against the LIVE env."
-2. **`reports/drift_recovery.png`** — caption: "On `research_photo_rename`, trained agent recovers post-drift; baseline does not."
-3. **`reports/safety_ablation.png`** — caption: "Adversarial policy contributes **zero** rows to training data — fail-closed safety."
+2. **`reports/safety_ablation.png`** — caption: "Adversarial policy contributes **zero** rows to training data — fail-closed safety."
+3. **Trained-vs-frontier table** (from `reports/frontier.json`) — caption: "1.5B LoRA matches gpt-4o-mini and claude-haiku-4-5 on drift-adjusted task correctness."
+
+(Optional 4th plot if Track A finishes in time: `reports/drift_recovery.png` — regenerate with the trained policy in `--policies` to get a clean separation between trained, rule_based, and random.)
 
 **Live demo block (90 sec):** Switch to browser running
 `spectator_web` at the killer seed. Let the narration strip read

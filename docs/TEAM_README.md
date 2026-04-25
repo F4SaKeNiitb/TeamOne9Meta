@@ -31,7 +31,7 @@ Both must land. Without #1, the trained column is empty. Without #2, you're a si
 
 - **No new features after hour 14.** Polish only.
 - **No code changes after hour 28.** Submit and sleep.
-- **If the headline `drift_recovery.png` doesn't have a visible drift line, nothing else matters.** Track B verifies this in hour 0–2.
+- **`reports/safety_ablation.png` is the headline visual** — adversarial 39 dropped (red) vs rule_based/keyword 39 kept (green). Track B verifies in hour 0–2. The drift-recovery plot is regenerated AFTER Track A delivers a trained policy (otherwise random's variance masks the story).
 - **Storytelling is 30%. Reward improvement is 20%.** A clean demo with a smaller model improvement beats a messy demo with a bigger one.
 
 ## Communication

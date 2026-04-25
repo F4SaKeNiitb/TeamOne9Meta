@@ -111,7 +111,21 @@ def _eval_one(env: ProtocolArenaEnvironment, policy: PolicyFn, task_id: str,
                            if k in {"kind", "rationale", "mcp_call", "a2a_call",
                                     "dag_delta", "kg_op", "final",
                                     "rewind_n", "confidence"}}
-            action = OrchestratorAction(**action_dict)
+            try:
+                action = OrchestratorAction(**action_dict)
+            except Exception:
+                # Model emitted a structurally invalid action (bad kind, missing
+                # payload, etc.). Count it as an invalid frame and continue —
+                # one bad turn must not zero the entire sweep.
+                action = OrchestratorAction(
+                    kind="memory",
+                    rationale="schema_validation_fallback for invalid action",
+                    kg_op={"op": "query", "pattern": "", "top_k": 1},
+                )
+                obs = env.step(action)
+                rewards.append(obs.reward)
+                frames_total += 1
+                continue
             obs = env.step(action)
             rewards.append(obs.reward)
             frames_total += 1

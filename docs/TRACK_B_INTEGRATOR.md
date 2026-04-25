@@ -1,6 +1,6 @@
 # Track B — Integrator
 
-You own **deployment, multi-agent, and AgentBeats**. Your output is a live HF Space, a second A2A agent, and a Green Agent registration. **Two of the three kill-shots are yours (B3, B4)** — these are what separate top-5 from podium.
+You own **deployment and multi-agent**. Your output is a live HF Space and a second A2A agent (Tool-Curator) deployed alongside it. **The multi-agent kill-shot (B3) is yours** — without it, this is a single-agent submission in a multi-agent-themed competition.
 
 ---
 
@@ -16,35 +16,39 @@ python -c "from arena.server.arena_env import ProtocolArenaEnvironment; \
 Install the HF CLI:
 ```bash
 pip install -U huggingface_hub
-huggingface-cli login                  # paste write token
+hf auth login                  # paste write token
 ```
 
 ---
 
-## Hour 0–2 · B1 — Verify all plots
+## Hour 0–2 · B1 — Verify the safety plot + killer seed
+
+The headline image for the deck is `safety_ablation.png` — clean, binary, instantly readable. The `drift_recovery.png` plot has been deferred: on baselines alone, cumulative reward gives random too much credit through valid-frame bonuses, so the lines do not separate cleanly. Regenerate it ONLY after Track A delivers a trained policy adapter — at that point the trained-vs-random gap is large enough to make the plot a clear win.
 
 ```bash
-# 1. Drift recovery (the headline plot)
-python scripts/make_money_plot.py \
-    --task research_photo_rename \
-    --seed 0 \
-    --policies rule_based keyword \
-    --out reports/drift_recovery.png
-
-# 2. Safety ablation (the fail-closed proof)
+# 1. Safety ablation (the fail-closed proof)
 python scripts/run_safety_ablation.py \
     --seeds 0 1 2 \
     --out reports/safety_ablation.png
 
-# 3. Killer seed scan (confirm research_photo_rename / seed 0 wins)
+# 2. Killer seed scan (confirm research_photo_rename / seed 0 wins)
 python scripts/find_killer_seed.py --top 5
 
-# 4. Confirm all 4 PNGs exist
+# 3. Confirm safety_ablation.png exists
 ls -la reports/*.png
 ```
 
-✅ PASS: 4 PNGs in `reports/`. `safety_ablation.png` shows adversarial = 0 kept, rule_based = 13 kept.
-❌ FAIL: any plot missing → check stderr for `matplotlib` import errors. Fix: `pip install matplotlib`.
+✅ PASS: `safety_ablation.png` shows adversarial = 39 dropped (red), rule_based + keyword = 39 kept each (green).
+❌ FAIL: plot missing → check stderr for `matplotlib` import errors. Fix: `pip install matplotlib`.
+
+**Drift-recovery plot — regenerate once Track A delivers a trained policy:**
+
+```bash
+python scripts/make_money_plot.py \
+    --task research_photo_rename --seeds 0 1 2 \
+    --policies rule_based keyword random trained:my_module:my_policy_fn \
+    --out reports/drift_recovery.png
+```
 
 ---
 
@@ -112,7 +116,7 @@ Expected:
 
 ## Hour 6–12 · B3 — Multi-agent A2A Tool-Curator (KILL-SHOT)
 
-Build a second FastAPI agent that the orchestrator can call via `a2a_call`. This is what taps into the AgentBeats Green/Purple thesis and separates you from single-agent submissions.
+Build a second FastAPI agent that the orchestrator can call via `a2a_call`. This is what makes the project genuinely multi-agent and separates you from single-agent submissions.
 
 **Step 1**: create the curator service.
 
@@ -246,9 +250,9 @@ Hand the curator URL to **Track C** for the video.
 
 ## Hour 12–13 · B4 — Make the A2A call visible in the spectator UI
 
-(Replaces the dropped AgentBeats registration. The freed hour goes to making the multi-agent demo land on camera.)
+The Tool-Curator only counts as a kill-shot if it's **visible on camera** during the 90-sec video. Right now an `a2a_call` event would scroll past unnoticed. Add a dedicated narration line.
 
-In `arena/ui/spectator_web.py`, extend the `narrate(ev)` function so an `a2a_call` event is rendered with the curator's response inline:
+In `arena/ui/spectator_web.py`, extend the `narrate(ev)` function so an `a2a` action is rendered with the curator's response inline:
 
 ```js
 if (ev.action && ev.action.kind === "a2a") {
@@ -261,10 +265,8 @@ if (ev.action && ev.action.kind === "a2a") {
 }
 ```
 
-Smoke-test:
+Smoke-test (with the curator running on :7862 and main env on :7860):
 ```bash
-# With the curator running on :7862 and main env on :7860,
-# step the orchestrator with a hand-crafted a2a action and check the event log.
 curl -s -X POST http://localhost:7860/step \
     -H 'content-type: application/json' \
     -d '{"kind":"a2a","rationale":"query curator after drift fires",
@@ -272,9 +274,10 @@ curl -s -X POST http://localhost:7860/step \
                      "params":{"intent":"search tool was renamed"}}}'
 ```
 
-Confirm the spectator overlay reads "🤝 A2A → tool-curator: intent="search tool was renamed" → tool=memory.lookup_alias (conf 0.85)".
+Confirm the spectator overlay reads:
+> 🤝 A2A → **tool-curator**: intent="search tool was renamed" → tool=**memory.lookup_alias** (conf 0.85)
 
-This is what makes the multi-agent claim land in the 90-sec video.
+That single line is what sells the multi-agent claim in the video. Hand the curator URL to **Track C**.
 
 ---
 
@@ -291,17 +294,16 @@ lsof -ti:7862 | xargs kill 2>/dev/null
 
 Open in a clean browser window:
 1. `https://<user>-protocol-arena.hf.space/?task=research_photo_rename&seed=0`
-2. Have `reports/safety_ablation.png` and `reports/drift_recovery.png` open in tabs
-3. Have the AgentBeats registry screenshot ready
-4. Have the trained-vs-frontier table from Track C ready
+2. Have `reports/safety_ablation.png` open in a tab (and `drift_recovery.png` if Track A delivered a trained policy in time)
+3. Have the trained-vs-frontier table from Track C ready
 
 **Demo beats (180 sec total):**
 - 0–20 sec: Problem statement (read VIDEO_SCRIPT.md). MCP/A2A drift breaks agents in production.
 - 20–60 sec: Live drift episode. Click Start. At turn 2 narration fires "⚠️ DRIFT FIRED". Orchestrator does memory.query → finds new tool name → recovers.
-- 60–80 sec: Show the Tool-Curator A2A call in the event log. "Two agents, A2A protocol."
-- 80–120 sec: Switch to safety_ablation.png. "Adversarial policy: 0 of 13 episodes kept. Fail-closed."
-- 120–150 sec: Show 4-column trained-vs-frontier table. "1.5B LoRA matches GPT-4o-mini on task_correctness."
-- 150–180 sec: AgentBeats screenshot + leaderboard score.
+- 60–90 sec: Show the Tool-Curator A2A call in the event log: "🤝 A2A → tool-curator: tool=memory.lookup_alias (conf 0.85)". Two agents, A2A protocol.
+- 90–130 sec: Switch to safety_ablation.png. "Adversarial policy: 0 of 13 episodes kept. Fail-closed at data-collection time."
+- 130–170 sec: Show the trained-vs-frontier table. "1.5B LoRA matches gpt-4o-mini on task_correctness."
+- 170–180 sec: Leaderboard score and links.
 
 If your dry-run goes >3:30, **cut the trained-vs-frontier paragraph to one sentence**. Time matters more than completeness.
 
@@ -311,7 +313,7 @@ If your dry-run goes >3:30, **cut the trained-vs-frontier paragraph to one sente
 
 - [ ] HF Space at `https://<user>-protocol-arena.hf.space` is live
 - [ ] Tool-Curator at `https://<user>-tool-curator.hf.space` is live
-- [ ] AgentBeats registration screenshot in `reports/agentbeats_registration.png`
+- [ ] Spectator UI shows a `🤝 A2A → tool-curator…` line when an `a2a` action runs
 - [ ] Demo timed under 3:30 in a clean browser
 
 After hour 26, support **Track C** with submission packaging.

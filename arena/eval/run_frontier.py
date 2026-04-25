@@ -24,12 +24,22 @@ import os
 import sys
 import json
 import argparse
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable, Dict, List, Optional
 
 from .harness import run_eval
 from .baselines import random_policy, rule_based_policy, keyword_policy
 from ..tasks import ALL_TASKS
+
+# Single lock to keep log lines from interleaving across worker threads.
+_PRINT_LOCK = threading.Lock()
+
+
+def _log(msg: str, err: bool = False) -> None:
+    with _PRINT_LOCK:
+        print(msg, file=sys.stderr if err else sys.stdout, flush=True)
 
 
 def _mock_providers() -> Dict[str, Callable]:
@@ -63,12 +73,12 @@ def _openai_compatible_policy(model_name: str,
 
     key = os.getenv(api_key_env, "")
     _assert_remote(api_base, label)
-    print(f"[preflight] {label:<16} model={model_name}  "
-          f"base={api_base or 'openai-default'}  "
-          f"key_env={api_key_env}={_mask(key)}", flush=True)
+    _log(f"[preflight] {label:<16} model={model_name}  "
+         f"base={api_base or 'openai-default'}  "
+         f"key_env={api_key_env}={_mask(key)}")
     if not key:
-        print(f"[preflight] {label}: ⚠️  {api_key_env} is EMPTY — every call will fall back",
-              file=sys.stderr, flush=True)
+        _log(f"[preflight] {label}: ⚠️  {api_key_env} is EMPTY — every call will fall back",
+             err=True)
 
     client = OpenAI(api_key=key, base_url=api_base) if api_base else OpenAI(api_key=key)
 
@@ -92,8 +102,8 @@ def _openai_compatible_policy(model_name: str,
             counters["api_err"] += 1
             if counters["first_err"] is None:
                 counters["first_err"] = f"{type(e).__name__}: {e}"
-                print(f"[error] {label}: first API error → {counters['first_err']}",
-                      file=sys.stderr, flush=True)
+                _log(f"[error] {label}: first API error → {counters['first_err']}",
+                     err=True)
             return {
                 "kind": "memory",
                 "rationale": f"provider_error_fallback: {type(e).__name__}",
@@ -112,8 +122,7 @@ def _openai_compatible_policy(model_name: str,
         raw = (resp.choices[0].message.content or "").strip()
         if counters["first_raw_sample"] is None:
             counters["first_raw_sample"] = raw[:200]
-            print(f"[debug] {label}: first response sample → {raw[:120]!r}",
-                  flush=True)
+            _log(f"[debug] {label}: first response sample → {raw[:120]!r}")
 
         try:
             if raw.startswith("```"):
@@ -188,6 +197,53 @@ def _assert_remote(api_base: Optional[str], label: str) -> None:
     )
 
 
+def _run_one_provider(label: str, policy: Callable, tasks: List[str],
+                      splits: List[str], seeds: List[int]
+                      ) -> Dict[str, Any]:
+    """Run one provider's full sweep. Safe to call from a worker thread —
+    `run_eval` allocates its own ProtocolArenaEnvironment per call, the
+    OpenAI client is thread-safe, and the policy's `_counters` dict is
+    only read after the worker returns."""
+    _log(f"[frontier] === {label} === "
+         f"{len(tasks)} tasks × {len(seeds)} seeds × {len(splits)} splits  (started)")
+    t0 = time.time()
+    try:
+        r = run_eval(policy, task_ids=tasks, splits=splits, seeds=seeds)
+        r["runtime_s"] = round(time.time() - t0, 2)
+
+        counters = getattr(policy, "_counters", None)
+        if counters is not None:
+            total = counters["api_ok"] + counters["api_err"] + counters["json_err"]
+            hit_rate = counters["api_ok"] / total if total else 0.0
+            r["api_calls"] = {
+                "ok": counters["api_ok"],
+                "api_error": counters["api_err"],
+                "json_error": counters["json_err"],
+                "total": total,
+                "hit_rate": round(hit_rate, 3),
+                "tokens_in": counters["tokens_in"],
+                "tokens_out": counters["tokens_out"],
+                "first_error": counters["first_err"],
+            }
+            _log(f"[summary] {label}: api_ok={counters['api_ok']}  "
+                 f"api_err={counters['api_err']}  json_err={counters['json_err']}  "
+                 f"hit_rate={hit_rate:.1%}  "
+                 f"tokens={counters['tokens_in']}→{counters['tokens_out']}  "
+                 f"runtime={r['runtime_s']}s")
+            if total == 0:
+                _log(f"[summary] {label}: ⚠️  ZERO API calls — check key/network",
+                     err=True)
+            elif hit_rate < 0.5:
+                _log(f"[summary] {label}: ⚠️  hit_rate < 50% — mostly fallbacks, "
+                     f"NOT a real frontier baseline", err=True)
+        else:
+            _log(f"[summary] {label}: local baseline  runtime={r['runtime_s']}s")
+        return r
+    except Exception as e:
+        _log(f"[error] {label} crashed: {type(e).__name__}: {e}", err=True)
+        return {"error": f"{type(e).__name__}: {e}"}
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--mock", action="store_true",
@@ -196,68 +252,56 @@ def main(argv=None) -> int:
     ap.add_argument("--splits", nargs="+", default=["pre", "during", "hard"])
     ap.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2])
     ap.add_argument("--tasks", nargs="+", default=None)
+    ap.add_argument("--workers", type=int, default=4,
+                    help="Concurrent providers (default 4). Set 1 to run "
+                         "serially. Local baselines always run sequentially "
+                         "first since they're CPU-bound and fast.")
     args = ap.parse_args(argv)
 
-    providers: Dict[str, Callable] = dict(_mock_providers())
+    local: Dict[str, Callable] = dict(_mock_providers())
+    live: Dict[str, Callable] = {}
     if not args.mock:
         try:
-            providers.update(_live_providers(DEFAULT_LIVE_CONFIG))
+            live = _live_providers(DEFAULT_LIVE_CONFIG)
         except Exception as e:
-            print(f"[warn] live providers unavailable: {e}", file=sys.stderr)
+            _log(f"[warn] live providers unavailable: {e}", err=True)
 
     results: Dict[str, Any] = {"generated_at": time.time(), "providers": {}}
     any_scored = False
-
     tasks = args.tasks or list(ALL_TASKS.keys())
-    for label, policy in providers.items():
-        print(f"\n[frontier] === {label} === "
-              f"{len(tasks)} tasks × {len(args.seeds)} seeds × {len(args.splits)} splits",
-              flush=True)
-        t0 = time.time()
-        try:
-            r = run_eval(policy, task_ids=tasks, splits=args.splits,
-                         seeds=args.seeds)
-            r["runtime_s"] = round(time.time() - t0, 2)
+    order = list(local.keys()) + list(live.keys())  # for stable summary order
 
-            # If this was a live provider, attach call counters & flag
-            # the case where every "successful" episode was actually a
-            # silent fallback.
-            counters = getattr(policy, "_counters", None)
-            if counters is not None:
-                total = counters["api_ok"] + counters["api_err"] + counters["json_err"]
-                hit_rate = counters["api_ok"] / total if total else 0.0
-                r["api_calls"] = {
-                    "ok": counters["api_ok"],
-                    "api_error": counters["api_err"],
-                    "json_error": counters["json_err"],
-                    "total": total,
-                    "hit_rate": round(hit_rate, 3),
-                    "tokens_in": counters["tokens_in"],
-                    "tokens_out": counters["tokens_out"],
-                    "first_error": counters["first_err"],
-                }
-                print(f"[summary] {label}: api_ok={counters['api_ok']}  "
-                      f"api_err={counters['api_err']}  json_err={counters['json_err']}  "
-                      f"hit_rate={hit_rate:.1%}  "
-                      f"tokens={counters['tokens_in']}→{counters['tokens_out']}  "
-                      f"runtime={r['runtime_s']}s", flush=True)
-                if total == 0:
-                    print(f"[summary] {label}: ⚠️  ZERO API calls were made — "
-                          f"check key/network", file=sys.stderr, flush=True)
-                elif hit_rate < 0.5:
-                    print(f"[summary] {label}: ⚠️  hit_rate < 50% — "
-                          f"results are mostly fallbacks, NOT a real frontier baseline",
-                          file=sys.stderr, flush=True)
-            else:
-                print(f"[summary] {label}: local baseline  runtime={r['runtime_s']}s",
-                      flush=True)
-
-            results["providers"][label] = r
+    # 1. Locals run sequentially — fast, CPU-bound, no API limits to spread.
+    for label, policy in local.items():
+        r = _run_one_provider(label, policy, tasks, args.splits, args.seeds)
+        results["providers"][label] = r
+        if "error" not in r:
             any_scored = True
-        except Exception as e:
-            print(f"[error] {label} crashed: {type(e).__name__}: {e}",
-                  file=sys.stderr, flush=True)
-            results["providers"][label] = {"error": f"{type(e).__name__}: {e}"}
+
+    # 2. Live providers run concurrently — different services, no shared
+    # rate limit. Wall time = max(per-provider time) instead of sum.
+    if live:
+        max_workers = max(1, min(args.workers, len(live)))
+        _log(f"[frontier] launching {len(live)} live providers across "
+             f"{max_workers} threads (concurrent)")
+        with ThreadPoolExecutor(max_workers=max_workers,
+                                thread_name_prefix="provider") as ex:
+            futures = {
+                ex.submit(_run_one_provider, label, policy,
+                          tasks, args.splits, args.seeds): label
+                for label, policy in live.items()
+            }
+            for fut in as_completed(futures):
+                label = futures[fut]
+                r = fut.result()
+                results["providers"][label] = r
+                if "error" not in r:
+                    any_scored = True
+
+    # Re-emit providers in the original order so downstream consumers see
+    # a stable layout regardless of completion timing.
+    results["providers"] = {k: results["providers"][k]
+                            for k in order if k in results["providers"]}
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w") as f:
@@ -265,18 +309,19 @@ def main(argv=None) -> int:
 
     # Final cross-provider summary so a one-glance check tells you
     # which providers actually ran.
-    print(f"\n[frontier] wrote {args.out}")
-    print(f"[frontier] === final summary ===")
+    _log(f"\n[frontier] wrote {args.out}")
+    _log(f"[frontier] === final summary ===")
     for label, r in results["providers"].items():
         if "error" in r:
-            print(f"  {label:<14} CRASH: {r['error'][:80]}")
+            _log(f"  {label:<18} CRASH: {r['error'][:80]}")
         elif "api_calls" in r:
             ac = r["api_calls"]
             tag = "OK" if ac["hit_rate"] >= 0.5 else "FALLBACK"
-            print(f"  {label:<14} {tag:<8} hit_rate={ac['hit_rate']:.0%}  "
-                  f"calls={ac['total']}  tokens={ac['tokens_in']}+{ac['tokens_out']}")
+            _log(f"  {label:<18} {tag:<8} hit_rate={ac['hit_rate']:.0%}  "
+                 f"calls={ac['total']}  tokens={ac['tokens_in']}+{ac['tokens_out']}  "
+                 f"runtime={r.get('runtime_s','?')}s")
         else:
-            print(f"  {label:<14} LOCAL    runtime={r.get('runtime_s','?')}s")
+            _log(f"  {label:<18} LOCAL    runtime={r.get('runtime_s','?')}s")
     return 0 if any_scored else 1
 
 

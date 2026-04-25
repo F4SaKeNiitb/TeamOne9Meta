@@ -40,14 +40,11 @@ Score formula: see [`SUBMISSION.md`](SUBMISSION.md).
 flywheel mix. Phase B: mean episode reward across rejection-sampling
 RL iterations against the LIVE env — the metric that matters.*
 
-### Drift recovery (the headline plot)
+### Drift recovery (regenerated post-training)
+
+> Plot generated with `scripts/make_money_plot.py --policies rule_based keyword random trained:<module>:<fn>` once the trained adapter is in place. On `research_photo_rename`, the search tool is renamed at turn 2 (red dashed line); the trained agent queries its capability KG, discovers the new name, and resumes accumulating reward. Baselines stall on cumulative reward across multiple seeds.
 
 ![drift recovery](reports/drift_recovery.png)
-
-*On `research_photo_rename`, the search tool is renamed at turn 2
-(red dashed line). The trained agent queries its capability KG,
-discovers the new name, and resumes accumulating reward. Baseline
-policies stall.*
 
 ### Fail-closed safety
 
