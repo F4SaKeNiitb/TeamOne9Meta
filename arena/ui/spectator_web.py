@@ -117,6 +117,18 @@ _INDEX_HTML = """<!doctype html>
   #conn { font-size: 11px; color: var(--muted); }
   #conn.live { color: var(--green); }
   #conn.dead { color: var(--red); }
+  #narrate {
+    padding: 10px 16px; font-size: 15px; line-height: 1.4;
+    background: linear-gradient(90deg, #1c2128 0%, #161b22 100%);
+    border-bottom: 1px solid var(--border); color: var(--fg);
+    font-weight: 500; min-height: 22px;
+  }
+  #narrate.drift { background: #4a1419; color: #fff;
+                   animation: pulse 0.5s ease 2; border-bottom-color: var(--red); }
+  #narrate.safety { background: #5a1a1a; color: #fff;
+                    animation: pulse 0.4s ease 4; border-bottom-color: var(--red); }
+  #narrate.recover { background: #0f5132; color: #fff;
+                     border-bottom-color: var(--green); }
 </style>
 </head>
 <body>
@@ -126,6 +138,7 @@ _INDEX_HTML = """<!doctype html>
   <span id="conn">●</span>
   <span class="reward" id="reward">—</span>
 </header>
+<div id="narrate">↻ waiting for the agent to take its first action…</div>
 <main>
   <section id="dag-panel">
     <h2>DAG (orchestrator plan)</h2>
@@ -271,6 +284,46 @@ function setConn(state) {
   c.textContent = state === "live" ? "● live" : state === "dead" ? "● disconnected" : "● …";
 }
 
+// Plain-English narration for non-technical judges. Maps action.kind +
+// drift events to a sentence that says what just happened in human terms.
+function narrate(ev) {
+  const n = $("narrate");
+  const a = ev.action || {};
+  let cls = "", txt = "";
+  if (ev.honeypot_triggered) {
+    cls = "safety";
+    txt = "🚨 SAFETY BREACH — the agent fell for a honeypot tool. Penalty applied; trajectory will NOT be ingested back into training.";
+  } else if (ev.injection_followed) {
+    cls = "safety";
+    txt = "🚨 SAFETY BREACH — the agent followed a prompt injection embedded in a search result. Hard penalty applied.";
+  } else if (ev.drift_fired_this_turn) {
+    cls = "drift";
+    txt = `⚠️ DRIFT FIRED at turn ${ev.turn} — ${ev.drift_fired_this_turn}. The agent must now recover.`;
+  } else if (a.kind === "memory") {
+    cls = "recover";
+    txt = `🧠 Turn ${ev.turn}: agent is querying its long-term memory (capability KG) — typical recovery move after drift.`;
+  } else if (a.kind === "rewind") {
+    cls = "recover";
+    txt = `⏮️ Turn ${ev.turn}: agent rewound to retry a different branch.`;
+  } else if (a.kind === "mcp") {
+    txt = `🔧 Turn ${ev.turn}: agent calling an MCP tool` +
+          (ev.last_ok === false ? " — last call failed, likely drift hitting." : ".");
+  } else if (a.kind === "a2a") {
+    txt = `🤝 Turn ${ev.turn}: agent delegating to a peer agent over A2A.`;
+  } else if (a.kind === "plan") {
+    txt = `📋 Turn ${ev.turn}: agent updating its DAG plan.`;
+  } else if (a.kind === "submit") {
+    cls = "recover";
+    txt = `✅ Turn ${ev.turn}: agent submitting final answer. Episode complete.`;
+  } else if (ev.kind === "init") {
+    txt = `▶️ Episode starting on task '${ev.task_id}' (seed ${ev.seed}). Watch the DAG grow and the six signal bars on the right.`;
+  } else {
+    txt = `Turn ${ev.turn || "?"}: agent thinking…`;
+  }
+  n.className = cls;
+  n.textContent = txt;
+}
+
 const params = new URLSearchParams(location.search);
 const task = params.get("task") || "research_photo_rename";
 const seed = params.get("seed") || "0";
@@ -282,6 +335,7 @@ es.onerror = () => setConn("dead");
 es.onmessage = (msg) => {
   let ev;
   try { ev = JSON.parse(msg.data); } catch { return; }
+  narrate(ev);
   if (ev.kind === "init") {
     $("task-meta").textContent =
       `task=${ev.task_id} · seed=${ev.seed} · max_turns=${ev.max_turns}`;

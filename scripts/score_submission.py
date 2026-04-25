@@ -30,8 +30,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 from typing import Any, Dict, List, Tuple
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 WEIGHTS = {
