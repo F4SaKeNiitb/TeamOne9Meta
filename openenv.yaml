@@ -1,84 +1,129 @@
-name: evalforge
-version: "1.0.0"
+name: protocol_arena
+version: "0.1.0"
 description: >
-  EvalForge is an OpenEnv environment where AI agents learn to evaluate
-  LLM outputs for critical failure modes: factual errors, sycophancy,
-  and dangerous overconfidence in high-stakes domains.
+  PROTOCOL-ARENA is an OpenEnv RL gym where an orchestrator LLM learns to
+  speak real MCP and A2A protocol frames under mid-episode schema drift. A
+  trained policy deploys directly into Claude Desktop, Cursor, mcp-cli, or
+  any A2A-compliant client.
 
-  Each difficulty level has multiple random variants, so the environment
-  is not a static quiz. Grounded in real documented failures including
-  the Mata v. Avianca legal case and research on LLM sycophancy.
+  Seven drift classes (additive, renaming, tightening, rate_limit,
+  agentcard_churn, policy, auth) mirror documented failure modes in the
+  MCP/A2A specs. The environment includes real MCP server stubs, A2A peer
+  personas, a persistent capability knowledge graph beyond context window,
+  and a five-signal reward with full provenance.
 
-author: Team One9
+author: Manish Shaw
 tags:
   - openenv
-  - llm-evaluation
-  - hallucination-detection
-  - sycophancy
-  - ai-safety
-  - real-world
+  - mcp
+  - a2a
+  - agent-protocols
+  - schema-drift
+  - long-horizon
+  - multi-agent
+  - world-modeling
 
 tasks:
-  - id: task_easy
+  - id: research_photo_basic
     difficulty: easy
-    description: "Detect confident factual errors in LLM responses. 3 variants."
-
-  - id: task_medium
+    description: "Find the chemical equation of photosynthesis. No drift."
+  - id: research_photo_rename
     difficulty: medium
-    description: "Detect sycophancy where the LLM confirms false user beliefs. 3 variants."
-
-  - id: task_hard
+    description: "Photosynthesis equation; search tool renamed mid-episode."
+  - id: research_transformer_cite
+    difficulty: medium
+    description: "Identify transformer paper authors and year."
+  - id: research_adam_additive
     difficulty: hard
-    description: "Detect dangerous overconfidence with fabricated citations in medical/clinical contexts. 3 variants."
+    description: "Adam paper details; KB schema gains required field."
+  - id: research_bell_tighten
+    difficulty: hard
+    description: "Bell's theorem year; query fields tightened."
+  - id: research_k8s_rate
+    difficulty: medium
+    description: "Kubernetes scheduler role; rate limits tightened."
+  - id: research_bh_churn
+    difficulty: hard
+    description: "Black hole event horizon; citer peer goes offline."
+  - id: research_photo_auth
+    difficulty: hard
+    description: "C4 vs C3 plants; fetch_url gains auth scope."
+  - id: research_gradient_multi
+    difficulty: medium
+    description: "Adam vs SGD explanation."
+  - id: research_top_products
+    difficulty: easy
+    description: "Top 5 products by units via data warehouse."
+  - id: consumer_policy_pii_search
+    difficulty: medium
+    description: "Search under PII-redaction policy drift."
+  - id: consumer_rename_plus_policy
+    difficulty: hard
+    description: "Compound rename + policy drift."
+  - id: consumer_churn_fallback
+    difficulty: medium
+    description: "Peer churn; fall back to alternative tools."
 
 action_space:
   type: structured
   fields:
-    - name: factual_accuracy
-      type: "float [0.0, 1.0]"
-    - name: instruction_following
-      type: "float [0.0, 1.0]"
-    - name: identified_failure
-      type: "enum[factual_error, hallucinated_citation, sycophancy, confident_when_uncertain, none]"
-    - name: reasoning
+    - name: kind
+      type: "enum[mcp, a2a, plan, memory, submit]"
+    - name: rationale
       type: "string (min 20 chars)"
-    - name: overall_verdict
-      type: "enum[pass, fail, flag_for_review]"
+    - name: mcp_call
+      type: "MCPCall (optional)"
+    - name: a2a_call
+      type: "A2ACall (optional)"
+    - name: dag_delta
+      type: "DAGDelta (optional)"
+    - name: kg_op
+      type: "KGOp (optional)"
+    - name: final
+      type: "string (optional, for submit)"
 
 observation_space:
   type: structured
   fields:
-    - name: task_id
+    - name: task_spec
       type: string
-    - name: difficulty
-      type: string
-    - name: original_prompt
-      type: string
-    - name: llm_response
-      type: string
-    - name: context
-      type: "string (optional)"
-    - name: evaluation_instructions
-      type: string
-    - name: step
+    - name: turn
       type: integer
-    - name: done
-      type: boolean
-    - name: reward
-      type: "float [0.0, 1.0]"
+    - name: budget
+      type: BudgetBreakdown
+    - name: last_result
+      type: "ProtocolResult (optional)"
+    - name: discovered
+      type: "DiscoverySnapshot"
+    - name: dag_state
+      type: "DAGSnapshot"
+    - name: memory_context
+      type: "List[KGFact]"
+    - name: otel_trace_id
+      type: string
     - name: feedback
       type: string
+    - name: reward_signals
+      type: "Dict[str, float]"
+    - name: reward
+      type: "float"
+    - name: done
+      type: boolean
 
 reward_function:
-  dimensions:
-    - name: failure_mode_identification
-      weight: 0.35
-    - name: factual_accuracy_proximity
-      weight: 0.25
-    - name: verdict_correctness
+  signals:
+    - name: task_correctness
+      weight: 0.30
+    - name: drift_robustness
       weight: 0.20
-    - name: reasoning_quality
+    - name: plan_quality
       weight: 0.20
+    - name: protocol_hygiene
+      weight: 0.15
+    - name: efficiency
+      weight: 0.10
+    - name: memory_hit_bonus
+      weight: 0.05
 
 endpoints:
   reset: POST /reset

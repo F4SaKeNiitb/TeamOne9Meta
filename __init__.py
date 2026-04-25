@@ -1,6 +1,27 @@
-"""EvalForge — LLM Output Evaluation Environment."""
+"""PROTOCOL-ARENA root package.
 
-from .models import EvalAction, EvalObservation, EvalState
-from .client import EvalForgeEnv
+Re-exports the primary types from arena.* so `from protocol_arena import ...`
+and `from arena import ...` both work.
+"""
 
-__all__ = ["EvalAction", "EvalObservation", "EvalState", "EvalForgeEnv"]
+from arena import (
+    ProtocolArenaEnv,
+    OrchestratorAction,
+    OrchestratorObservation,
+    OrchestratorState,
+    MCPCall,
+    A2ACall,
+    DAGDelta,
+    KGOp,
+)
+
+__all__ = [
+    "ProtocolArenaEnv",
+    "OrchestratorAction",
+    "OrchestratorObservation",
+    "OrchestratorState",
+    "MCPCall",
+    "A2ACall",
+    "DAGDelta",
+    "KGOp",
+]

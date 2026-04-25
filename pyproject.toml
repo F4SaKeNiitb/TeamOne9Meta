@@ -1,16 +1,16 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
-name = "evalforge"
-version = "1.0.0"
-description = "An OpenEnv RL environment where AI agents learn to evaluate LLM outputs for critical failure modes."
+name = "protocol_arena"
+version = "0.1.0"
+description = "PROTOCOL-ARENA: OpenEnv RL gym where agents learn to speak MCP and A2A under schema drift."
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
 authors = [
-    {name = "Team One9"},
+    {name = "Manish Shaw"},
 ]
 
 dependencies = [
@@ -23,12 +23,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
-]
+dev = ["pytest>=7.0"]
+train = ["trl>=0.8", "peft>=0.10", "accelerate>=0.27", "bitsandbytes>=0.43",
+         "datasets>=2.18"]
 
 [project.scripts]
-server = "server.app:main"
+arena-server = "arena.server.app:main"
+arena-replay = "arena.server.replay:main"
+arena-sft-bootstrap = "arena.training.sft_bootstrap:main"
 
 [tool.setuptools.packages.find]
-include = ["evalforge*"]
+include = ["arena*"]

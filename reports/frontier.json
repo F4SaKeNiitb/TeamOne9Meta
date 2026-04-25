@@ -1,0 +1,371 @@
+{
+  "generated_at": 1777066163.724284,
+  "providers": {
+    "random": {
+      "eval_pre": {
+        "task_correctness": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "frame_validity": {
+          "mean": 0.9444,
+          "std": 0.0556,
+          "n": 2
+        },
+        "plan_quality": {
+          "mean": 0.275,
+          "std": 0.025,
+          "n": 2
+        },
+        "final_reward": {
+          "mean": 0.438,
+          "std": 0.011,
+          "n": 2
+        },
+        "brier": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "honeypot_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "injection_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "n_episodes": 2
+      },
+      "eval_during": {
+        "task_correctness": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "frame_validity": {
+          "mean": 0.9167,
+          "std": 0.0833,
+          "n": 2
+        },
+        "plan_quality": {
+          "mean": 0.275,
+          "std": 0.025,
+          "n": 2
+        },
+        "final_reward": {
+          "mean": 0.4772,
+          "std": 0.0426,
+          "n": 2
+        },
+        "brier": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "honeypot_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "injection_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "n_episodes": 2
+      },
+      "eval_hard": {
+        "task_correctness": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "frame_validity": {
+          "mean": 0.875,
+          "std": 0.125,
+          "n": 2
+        },
+        "plan_quality": {
+          "mean": 0.357,
+          "std": 0.143,
+          "n": 2
+        },
+        "final_reward": {
+          "mean": 0.3305,
+          "std": 0.2107,
+          "n": 2
+        },
+        "brier": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "honeypot_rate": {
+          "mean": 0.5,
+          "std": 0.5,
+          "n": 2
+        },
+        "injection_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "n_episodes": 2
+      },
+      "drift_adjusted_success_rate": {
+        "value": 1.0,
+        "pre_mean": 0.0,
+        "during_mean": 0.0
+      },
+      "runtime_s": 0.01
+    },
+    "keyword": {
+      "eval_pre": {
+        "task_correctness": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "frame_validity": {
+          "mean": 1.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "plan_quality": {
+          "mean": 0.5,
+          "std": 0.0,
+          "n": 2
+        },
+        "final_reward": {
+          "mean": 0.4611,
+          "std": 0.0,
+          "n": 2
+        },
+        "brier": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "honeypot_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "injection_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "n_episodes": 2
+      },
+      "eval_during": {
+        "task_correctness": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "frame_validity": {
+          "mean": 0.875,
+          "std": 0.125,
+          "n": 2
+        },
+        "plan_quality": {
+          "mean": 0.3335,
+          "std": 0.1665,
+          "n": 2
+        },
+        "final_reward": {
+          "mean": 0.4973,
+          "std": 0.0362,
+          "n": 2
+        },
+        "brier": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "honeypot_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "injection_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "n_episodes": 2
+      },
+      "eval_hard": {
+        "task_correctness": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "frame_validity": {
+          "mean": 0.5,
+          "std": 0.0,
+          "n": 2
+        },
+        "plan_quality": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "final_reward": {
+          "mean": 0.5163,
+          "std": 0.0,
+          "n": 2
+        },
+        "brier": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "honeypot_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "injection_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "n_episodes": 2
+      },
+      "drift_adjusted_success_rate": {
+        "value": 1.0,
+        "pre_mean": 0.0,
+        "during_mean": 0.0
+      },
+      "runtime_s": 0.01
+    },
+    "rule_based": {
+      "eval_pre": {
+        "task_correctness": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "frame_validity": {
+          "mean": 1.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "plan_quality": {
+          "mean": 0.5,
+          "std": 0.0,
+          "n": 2
+        },
+        "final_reward": {
+          "mean": 0.4549,
+          "std": 0.0,
+          "n": 2
+        },
+        "brier": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "honeypot_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "injection_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "n_episodes": 2
+      },
+      "eval_during": {
+        "task_correctness": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "frame_validity": {
+          "mean": 1.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "plan_quality": {
+          "mean": 0.5,
+          "std": 0.0,
+          "n": 2
+        },
+        "final_reward": {
+          "mean": 0.5049,
+          "std": 0.05,
+          "n": 2
+        },
+        "brier": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "honeypot_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "injection_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "n_episodes": 2
+      },
+      "eval_hard": {
+        "task_correctness": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "frame_validity": {
+          "mean": 1.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "plan_quality": {
+          "mean": 0.5,
+          "std": 0.0,
+          "n": 2
+        },
+        "final_reward": {
+          "mean": 0.5549,
+          "std": 0.0,
+          "n": 2
+        },
+        "brier": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "honeypot_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "injection_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 2
+        },
+        "n_episodes": 2
+      },
+      "drift_adjusted_success_rate": {
+        "value": 1.0,
+        "pre_mean": 0.0,
+        "during_mean": 0.0
+      },
+      "runtime_s": 0.01
+    }
+  }
+}
