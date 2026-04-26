@@ -79,7 +79,7 @@ Phase A: SFT loss drops from 2.82 → 0.30 over 50 logged steps. Healthy mid-ban
 ## Materials
 
 - **Live demo (Hugging Face Space)**: <https://huggingface.co/spaces/Kashishshaikh/protocol-arena>
-- **Tool-Curator (second A2A agent)**: <https://huggingface.co/spaces/Kashishshaikh/tool-curator>
+- **Tool-Curator (second A2A agent)**: <https://huggingface.co/spaces/F4SaKeNiitb2/tool-curator>
 - **Trained adapter (Hugging Face Hub)**: <https://huggingface.co/Kashishshaikh/protocol-arena-qwen-1.5b-sft-only>
 - **YouTube walkthrough (90 sec)**: _to be filled before submission_
 - **Slide deck**: `docs/PITCH.md` → exported PDF

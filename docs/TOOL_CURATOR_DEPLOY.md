@@ -65,7 +65,7 @@ Fill in:
 
 | Field | Value |
 |---|---|
-| Owner | `Kashishshaikh` |
+| Owner | `F4SaKeNiitb2` (the curator can live under any teammate's account) |
 | Space name | `tool-curator` |
 | License | `apache-2.0` |
 | Space SDK | **Docker** → **Blank** template |
@@ -73,7 +73,7 @@ Fill in:
 | Visibility | Public |
 
 Click **Create Space**. You'll land on
-`https://huggingface.co/spaces/Kashishshaikh/tool-curator`.
+`https://huggingface.co/spaces/F4SaKeNiitb2/tool-curator`.
 
 > Alternative if you have `huggingface-cli` set up:
 > ```bash
@@ -86,7 +86,7 @@ Click **Create Space**. You'll land on
 
 ```bash
 cd /Users/manish/Downloads
-git clone https://huggingface.co/spaces/Kashishshaikh/tool-curator hf-curator
+git clone https://huggingface.co/spaces/F4SaKeNiitb2/tool-curator hf-curator
 cd hf-curator
 ```
 
@@ -150,8 +150,8 @@ A2A calls and returns an MCP tool name based on natural-language intent.
 ## Try it
 
 ```bash
-curl -s https://Kashishshaikh-tool-curator.hf.space/.well-known/agent.json
-curl -s -X POST https://Kashishshaikh-tool-curator.hf.space/a2a \
+curl -s https://F4SaKeNiitb2-tool-curator.hf.space/.well-known/agent.json
+curl -s -X POST https://F4SaKeNiitb2-tool-curator.hf.space/a2a \
     -H 'content-type: application/json' \
     -d '{"method":"recommend_tool","params":{"intent":"search tool was renamed"}}'
 ```
@@ -183,7 +183,7 @@ git push
 
 If the push prompts for credentials again, paste your HF write token.
 
-Open **https://huggingface.co/spaces/Kashishshaikh/tool-curator** in a
+Open **https://huggingface.co/spaces/F4SaKeNiitb2/tool-curator** in a
 browser. The **Logs** tab shows the build:
 
 | Stage | Time |
@@ -203,23 +203,23 @@ Once the Space is **Running**, run these four `curl`s from your laptop:
 
 ```bash
 # 1. Agent card (A2A discovery)
-curl -s https://Kashishshaikh-tool-curator.hf.space/.well-known/agent.json \
+curl -s https://F4SaKeNiitb2-tool-curator.hf.space/.well-known/agent.json \
     | python3 -m json.tool
 
 # 2. Rename intent → memory.lookup_alias
-curl -s -X POST https://Kashishshaikh-tool-curator.hf.space/a2a \
+curl -s -X POST https://F4SaKeNiitb2-tool-curator.hf.space/a2a \
     -H 'content-type: application/json' \
     -d '{"method":"recommend_tool","params":{"intent":"the search tool was renamed"}}' \
     | python3 -m json.tool
 
 # 3. Photo exif intent → fs.read_exif
-curl -s -X POST https://Kashishshaikh-tool-curator.hf.space/a2a \
+curl -s -X POST https://F4SaKeNiitb2-tool-curator.hf.space/a2a \
     -H 'content-type: application/json' \
     -d '{"method":"recommend_tool","params":{"intent":"read photo exif data"}}' \
     | python3 -m json.tool
 
 # 4. Fallback when no keyword matches → search.web (low confidence)
-curl -s -X POST https://Kashishshaikh-tool-curator.hf.space/a2a \
+curl -s -X POST https://F4SaKeNiitb2-tool-curator.hf.space/a2a \
     -H 'content-type: application/json' \
     -d '{"method":"recommend_tool","params":{"intent":"asdf qwerty"}}' \
     | python3 -m json.tool
@@ -252,10 +252,10 @@ Reload the main repo's `README.md` on GitHub. This line should now point
 at a live page (no 404):
 
 ```
-- **Tool-Curator (second A2A agent)**: <https://huggingface.co/spaces/Kashishshaikh/tool-curator>
+- **Tool-Curator (second A2A agent)**: <https://huggingface.co/spaces/F4SaKeNiitb2/tool-curator>
 ```
 
-Same for the live API URL `https://Kashishshaikh-tool-curator.hf.space/`.
+Same for the live API URL `https://F4SaKeNiitb2-tool-curator.hf.space/`.
 
 ---
 
@@ -266,7 +266,7 @@ Same for the live API URL `https://Kashishshaikh-tool-curator.hf.space/`.
 | Build fails with `COPY agents /app/agents` error | `agents/` folder wasn't copied or has a typo | `ls agents/` from inside `hf-curator` — should show `__init__.py` and `tool_curator.py` |
 | Build succeeds but Space stuck on "Building" indefinitely | Port mismatch | Confirm `app_port: 7860` in README header AND `${PORT}` in Dockerfile CMD |
 | `/a2a` returns 422 Unprocessable Entity | Pydantic schema mismatch | The `A2ARequest` model requires `method` (string) and `params` (dict). Send both. |
-| `curl` returns HTML instead of JSON | You hit `https://huggingface.co/spaces/...` (management page) instead of `https://Kashishshaikh-tool-curator.hf.space/` (live app) | Use the `.hf.space` subdomain for API calls |
+| `curl` returns HTML instead of JSON | You hit `https://huggingface.co/spaces/...` (management page) instead of `https://F4SaKeNiitb2-tool-curator.hf.space/` (live app) | Use the `.hf.space` subdomain for API calls |
 | 404 on `/.well-known/agent.json` after rebuild | Old build cached | HF page → **Settings** → **Factory rebuild** |
 | `git push` hangs forever | LFS hook waiting for large files; we have none | `git lfs uninstall --local && git push` |
 
@@ -281,7 +281,7 @@ With it, you can defend three concrete claims to judges:
 
 1. **Two live, distinct agents** — main spectator at
    `Kashishshaikh-protocol-arena.hf.space` + curator at
-   `Kashishshaikh-tool-curator.hf.space`. Two URLs, two FastAPI containers.
+   `F4SaKeNiitb2-tool-curator.hf.space`. Two URLs, two FastAPI containers.
 2. **Real A2A protocol surface** — the `/.well-known/agent.json`
    discovery endpoint and `POST /a2a` JSON-RPC method. Judges can curl
    them. Same protocol an A2A-compliant orchestrator would use.

@@ -326,7 +326,13 @@ function narrate(ev) {
     txt = `🔧 Turn ${ev.turn}: agent calling an MCP tool` +
           (ev.last_ok === false ? " — last call failed, likely drift hitting." : ".");
   } else if (a.kind === "a2a") {
-    txt = `🤝 Turn ${ev.turn}: agent delegating to a peer agent over A2A.`;
+    cls = "recover";
+    const target = a.a2a_call?.agent_card_id || "tool-curator";
+    const intent = (a.a2a_call?.task_spec || "").slice(0, 60);
+    const body   = ev.last_result_body || {};
+    const tool   = body.tool ?? "—";
+    const conf   = body.confidence ?? "—";
+    txt = `🤝 A2A → ${target}: intent="${intent}…" → tool=${tool} (conf ${conf})`;
   } else if (a.kind === "plan") {
     txt = `📋 Turn ${ev.turn}: agent updating its DAG plan.`;
   } else if (a.kind === "submit") {
@@ -474,12 +480,17 @@ def _run_episode(task_id: str, seed: int, max_turns: int,
                 pass
 
             last = obs.last_result
+            # Pass the full action dict (not just kind+rationale) so the
+            # frontend can render a richer narration line — specifically,
+            # for `a2a` actions we want to show the target peer + the
+            # tool the curator recommended back. Also surface the env's
+            # last_result body so the JS sees what came back from the
+            # A2A peer.
             q.put({
                 "kind": "turn",
                 "task_id": task_id, "seed": seed,
                 "turn": obs.turn, "max_turns": obs.max_turns,
-                "action": {"kind": decision.get("kind"),
-                           "rationale": decision.get("rationale", "")},
+                "action": decision,
                 "dag": obs.dag_state.model_dump() if obs.dag_state else {},
                 "signals": obs.reward_signals or {},
                 "reward": obs.reward,
@@ -487,6 +498,7 @@ def _run_episode(task_id: str, seed: int, max_turns: int,
                 "honeypot_triggered": bool(env.state.honeypot_triggered),
                 "injection_followed": bool(env.state.injection_followed),
                 "last_ok": bool(last.ok) if last else None,
+                "last_result_body": (last.body if (last and last.ok) else None),
                 "drift_fired_this_turn": drift_now,
             })
 
