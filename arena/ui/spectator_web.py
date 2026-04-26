@@ -71,6 +71,18 @@ _INDEX_HTML = """<!doctype html>
   header h1 { margin: 0; font-size: 14px; letter-spacing: 0.5px; }
   header .meta { color: var(--muted); font-size: 12px; }
   header .reward { margin-left: auto; font-size: 18px; font-weight: 600; }
+  header .controls { display: flex; gap: 6px; align-items: center;
+                     margin-left: 12px; }
+  header .controls select, header .controls input,
+  header .controls button {
+    background: var(--panel); color: var(--fg); border: 1px solid var(--border);
+    border-radius: 4px; padding: 4px 8px; font: inherit;
+  }
+  header .controls input { width: 60px; }
+  header .controls button { cursor: pointer; }
+  header .controls button:hover { background: var(--border); }
+  header .controls button.start { background: var(--green); color: #000;
+                                   border-color: var(--green); font-weight: 600; }
   main {
     display: grid;
     grid-template-columns: 1fr 360px;
@@ -137,6 +149,11 @@ _INDEX_HTML = """<!doctype html>
   <span class="meta" id="task-meta">connecting…</span>
   <span id="conn">●</span>
   <span class="reward" id="reward">—</span>
+  <span class="controls">
+    <select id="task-select" title="task"></select>
+    <input id="seed-input" type="number" value="0" min="0" title="seed"/>
+    <button id="start-btn" class="start" title="run a fresh episode">▶ Start</button>
+  </span>
 </header>
 <div id="narrate">↻ waiting for the agent to take its first action…</div>
 <main>
@@ -329,6 +346,26 @@ const task = params.get("task") || "research_photo_rename";
 const seed = params.get("seed") || "0";
 $("task-meta").textContent = `task=${task} · seed=${seed}`;
 
+// Populate the task dropdown from /tasks and wire the Start button.
+// Clicking Start reloads the page with the new task/seed in the URL —
+// simplest possible way to start a fresh episode without server-side
+// session state.
+fetch("/tasks").then(r => r.json()).then(d => {
+  const sel = $("task-select");
+  for (const t of d.tasks || []) {
+    const o = document.createElement("option");
+    o.value = t; o.textContent = t;
+    if (t === task) o.selected = true;
+    sel.appendChild(o);
+  }
+}).catch(() => {});
+$("seed-input").value = seed;
+$("start-btn").onclick = () => {
+  const t = $("task-select").value || task;
+  const s = $("seed-input").value || "0";
+  location.href = `/?task=${encodeURIComponent(t)}&seed=${s}`;
+};
+
 const es = new EventSource(`/events?task=${encodeURIComponent(task)}&seed=${seed}`);
 es.onopen = () => setConn("live");
 es.onerror = () => setConn("dead");
@@ -369,13 +406,46 @@ def _action_dict_clean(d: Dict[str, Any]) -> Dict[str, Any]:
     return {k: v for k, v in d.items() if k in keep}
 
 
+def _describe_drift_at_turn(task_id: str, turn: int) -> str:
+    """Look up the drift schedule for `task_id` and return a short
+    human-readable description of any drift event whose `turn` equals
+    `turn`. Returns "" if the schedule has nothing for this turn.
+
+    The env state only tracks a *boolean* `drift_fired`, not the event
+    details. We pull the human-readable text out of the task's static
+    DriftSchedule so the spectator narration can say WHAT drifted, not
+    just THAT something drifted."""
+    task = ALL_TASKS.get(task_id, {}) or {}
+    sched = task.get("drift_schedule")
+    events = getattr(sched, "events", []) or []
+    descriptions: List[str] = []
+    for e in events:
+        if int(getattr(e, "turn", -1)) != turn:
+            continue
+        klass = getattr(e, "klass", "?")
+        srv   = getattr(e, "target_server", None)
+        tool  = getattr(e, "target_tool", None)
+        peer  = getattr(e, "target_peer", None)
+        detail = getattr(e, "detail", {}) or {}
+        target = (f"{srv}.{tool}" if srv and tool
+                  else (peer or srv or tool or "env"))
+        if klass == "renaming" and "new_name" in detail:
+            descriptions.append(f"{klass} on {target} → {detail['new_name']}")
+        else:
+            descriptions.append(f"{klass} on {target}")
+    return "; ".join(descriptions)
+
+
 def _run_episode(task_id: str, seed: int, max_turns: int,
                  policy: PolicyFn, q: "queue.Queue[Any]") -> None:
     """Worker thread — drives the env and pushes SSE events into `q`."""
     try:
         env = ProtocolArenaEnvironment()
         obs = env.reset(task_id=task_id, seed=seed)
-        prior_drift_count = 0
+        # `env.state.drift_fired` is a BOOL, not a list. Track its
+        # False→True transition once per episode rather than counting
+        # list growth (which never grows because it's a scalar).
+        prior_drift_fired = bool(env.state.drift_fired)
         q.put({
             "kind": "init", "task_id": task_id, "seed": seed,
             "max_turns": obs.max_turns,
@@ -392,14 +462,14 @@ def _run_episode(task_id: str, seed: int, max_turns: int,
             obs = env.step(OrchestratorAction(**decision))
             steps += 1
 
-            # Detect a drift event firing on this turn.
+            # Detect drift firing on this turn — bool transition + schedule lookup.
             drift_now = ""
             try:
-                fired = list(env.state.drift_fired or [])
-                if len(fired) > prior_drift_count:
-                    new = fired[prior_drift_count:]
-                    drift_now = "; ".join(str(x) for x in new)
-                    prior_drift_count = len(fired)
+                now_fired = bool(env.state.drift_fired)
+                if now_fired and not prior_drift_fired:
+                    desc = _describe_drift_at_turn(task_id, obs.turn)
+                    drift_now = desc or "schema drift event fired"
+                    prior_drift_fired = True
             except Exception:
                 pass
 
