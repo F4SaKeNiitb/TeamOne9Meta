@@ -281,11 +281,22 @@ function appendLog(turn, action, ok) {
   while (log.childElementCount > 8) log.removeChild(log.lastChild);
 }
 
+// Tracks the turn drift fired this episode. Used by narrate() to
+// distinguish "drift just fired" (red banner) from "agent stuck after
+// drift" (amber, recovery-pending banner). Reset on each /events
+// connection because we get a fresh init event.
+let DRIFT_TURN = null;
+let DRIFT_DESC = null;
+
 function fireDrift(turn, drift) {
+  DRIFT_TURN = turn;
+  DRIFT_DESC = drift;
   const t = $("drift-ticker");
   t.textContent = `🔴 T${turn}: drift fired — ${drift}`;
   t.classList.add("fired");
-  setTimeout(() => t.classList.remove("fired"), 1800);
+  // Pulse for ~3 sec then settle into a non-pulsing "history" state so
+  // it doesn't keep visually firing as the rest of the episode plays.
+  setTimeout(() => t.classList.remove("fired"), 3000);
 }
 
 function setSafety(hp, inj) {
@@ -324,8 +335,17 @@ function narrate(ev) {
     cls = "recover";
     txt = `⏮️ Turn ${ev.turn}: agent rewound to retry a different branch.`;
   } else if (a.kind === "mcp") {
-    txt = `🔧 Turn ${ev.turn}: agent calling an MCP tool` +
-          (ev.last_ok === false ? " — last call failed, likely drift hitting." : ".");
+    if (ev.last_ok === false && DRIFT_TURN !== null && ev.turn > DRIFT_TURN) {
+      // Drift already fired and the call failed — the agent is stuck
+      // on the dead tool path. Don't re-say "drift fired" (it didn't,
+      // again) — call out the specific recovery problem.
+      cls = "";
+      txt = `⏳ Turn ${ev.turn}: MCP call still failing post-drift — agent hasn't queried memory or adapted to the renamed tool yet.`;
+    } else if (ev.last_ok === false) {
+      txt = `⚠️ Turn ${ev.turn}: MCP call returned an error.`;
+    } else {
+      txt = `🔧 Turn ${ev.turn}: agent calling an MCP tool.`;
+    }
   } else if (a.kind === "a2a") {
     cls = "recover";
     const target = a.a2a_call?.agent_card_id || "tool-curator";
@@ -408,6 +428,12 @@ es.onmessage = (msg) => {
   try { ev = JSON.parse(msg.data); } catch { return; }
   narrate(ev);
   if (ev.kind === "init") {
+    // Fresh episode — clear per-episode state used by narrate().
+    DRIFT_TURN = null;
+    DRIFT_DESC = null;
+    const t = $("drift-ticker");
+    t.textContent = "no drift fired yet.";
+    t.classList.remove("fired");
     $("task-meta").textContent =
       `task=${ev.task_id} · seed=${ev.seed} · max_turns=${ev.max_turns}`;
     renderSignals({});
