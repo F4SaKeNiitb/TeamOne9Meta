@@ -297,6 +297,19 @@ def _run_one_provider(label: str, policy: Callable, tasks: List[str],
         if save_cb:
             save_cb(label, dict(block))
 
+    # Compute drift_adjusted_success_rate AFTER all splits are merged.
+    # `harness.run_eval` only computes DAS when both eval_pre and eval_during
+    # are present in the same call's report — but our per-split loop above
+    # calls run_eval one split at a time, so DAS would otherwise never get
+    # populated. Recompute it here from the merged block.
+    pre    = block.get("eval_pre",    {}).get("task_correctness", {}).get("mean")
+    during = block.get("eval_during", {}).get("task_correctness", {}).get("mean")
+    if pre is not None and during is not None:
+        block["drift_adjusted_success_rate"] = {
+            "value": round(max(0.0, 1.0 - max(0.0, pre - during)), 3),
+            "pre_mean": pre, "during_mean": during,
+        }
+
     _attach_api_calls(block, policy, label)
     if save_cb:
         save_cb(label, dict(block))

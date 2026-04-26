@@ -17,4 +17,4 @@ ENV PORT=7860
 
 EXPOSE 7860
 
-CMD ["sh", "-c", "uvicorn arena.server.app:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "uvicorn arena.ui.spectator_web:app --host 0.0.0.0 --port ${PORT}"]

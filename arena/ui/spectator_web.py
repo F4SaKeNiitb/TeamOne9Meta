@@ -486,6 +486,11 @@ def build_app(policy: PolicyFn = rule_based_policy, max_turns: int = 12):
     return app
 
 
+# Module-level app so `uvicorn arena.ui.spectator_web:app` works without
+# going through main(). HF Spaces / docker entrypoints import this.
+app = build_app()
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="PROTOCOL-ARENA browser spectator")
     ap.add_argument("--port", type=int, default=7861)
