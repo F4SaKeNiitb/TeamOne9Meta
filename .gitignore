@@ -6,3 +6,5 @@ build/
 .venv/
 venv/
 .env
+reports.zip
+*.zip
