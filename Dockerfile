@@ -10,7 +10,7 @@ COPY README.md ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir \
         "openenv-core>=0.2.3" "fastapi" "uvicorn[standard]" "pydantic>=2" \
-        "matplotlib" "numpy"
+        "matplotlib" "numpy" "openai>=1.30"
 
 ENV PYTHONPATH=/app
 ENV PORT=7860

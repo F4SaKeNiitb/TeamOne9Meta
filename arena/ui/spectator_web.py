@@ -150,6 +150,7 @@ _INDEX_HTML = """<!doctype html>
   <span id="conn">●</span>
   <span class="reward" id="reward">—</span>
   <span class="controls">
+    <select id="policy-select" title="policy / agent"></select>
     <select id="task-select" title="task"></select>
     <input id="seed-input" type="number" value="0" min="0" title="seed"/>
     <button id="start-btn" class="start" title="run a fresh episode">▶ Start</button>
@@ -348,14 +349,14 @@ function narrate(ev) {
 }
 
 const params = new URLSearchParams(location.search);
-const task = params.get("task") || "research_photo_rename";
-const seed = params.get("seed") || "0";
-$("task-meta").textContent = `task=${task} · seed=${seed}`;
+const task   = params.get("task") || "research_photo_rename";
+const seed   = params.get("seed") || "0";
+const policy = params.get("policy") || "rule_based";
+$("task-meta").textContent = `task=${task} · seed=${seed} · policy=${policy}`;
 
-// Populate the task dropdown from /tasks and wire the Start button.
-// Clicking Start reloads the page with the new task/seed in the URL —
-// simplest possible way to start a fresh episode without server-side
-// session state.
+// Populate task + policy dropdowns from the server. Frontier API options
+// (gpt-4o-mini, claude-haiku-4-5) only appear if the corresponding
+// secret is set on the Space — keeps the dropdown honest.
 fetch("/tasks").then(r => r.json()).then(d => {
   const sel = $("task-select");
   for (const t of d.tasks || []) {
@@ -365,14 +366,41 @@ fetch("/tasks").then(r => r.json()).then(d => {
     sel.appendChild(o);
   }
 }).catch(() => {});
+fetch("/policies").then(r => r.json()).then(d => {
+  const sel = $("policy-select");
+  const policies = d.policies || [];
+  for (const p of policies) {
+    const o = document.createElement("option");
+    o.value = p; o.textContent = p;
+    if (p === policy) o.selected = true;
+    sel.appendChild(o);
+  }
+  if (d.needs_api_key) {
+    // Surface a clear setup banner instead of silent failure.
+    const n = $("narrate");
+    n.className = "safety";
+    n.innerHTML =
+      "🔐 No LLM API key configured on this Space. " +
+      "Add <code>ANTHROPIC_API_KEY</code> or <code>OPENAI_API_KEY</code> " +
+      "in Space Settings → Variables and secrets, then rebuild. " +
+      "Until then, episodes cannot be streamed.";
+    $("start-btn").disabled = true;
+    $("start-btn").style.opacity = "0.5";
+    $("start-btn").style.cursor = "not-allowed";
+  }
+}).catch(() => {});
+
 $("seed-input").value = seed;
 $("start-btn").onclick = () => {
   const t = $("task-select").value || task;
   const s = $("seed-input").value || "0";
-  location.href = `/?task=${encodeURIComponent(t)}&seed=${s}`;
+  const p = $("policy-select").value || policy;
+  location.href = `/?task=${encodeURIComponent(t)}&seed=${s}&policy=${encodeURIComponent(p)}`;
 };
 
-const es = new EventSource(`/events?task=${encodeURIComponent(task)}&seed=${seed}`);
+const es = new EventSource(
+  `/events?task=${encodeURIComponent(task)}&seed=${seed}` +
+  `&policy_id=${encodeURIComponent(policy)}`);
 es.onopen = () => setConn("live");
 es.onerror = () => setConn("dead");
 es.onmessage = (msg) => {
@@ -523,11 +551,83 @@ def _run_episode(task_id: str, seed: int, max_turns: int,
         q.put(None)
 
 
+def _build_policy_registry() -> Dict[str, "PolicyFn"]:
+    """Map a string policy id (selectable from the UI dropdown) to a
+    callable that takes an obs dict and returns an action dict.
+
+    Only frontier-API policies are exposed in the dropdown — this Space
+    is intentionally LLM-driven so judges always see a real model
+    reasoning, never a Python `if/else`. Set `OPENAI_API_KEY` and/or
+    `ANTHROPIC_API_KEY` as HF Space secrets to enable each option.
+
+    `rule_based_policy` is still imported here as the silent fallback
+    inside each LLM policy when the model emits invalid JSON — judges
+    don't see it surfaced anywhere."""
+    import os
+    from ..eval.baselines import rule_based_policy
+
+    registry: Dict[str, "PolicyFn"] = {}
+
+    # claude-haiku-4-5 via ANTHROPIC_API_KEY (Space secret)
+    if os.getenv("ANTHROPIC_API_KEY"):
+        try:
+            from openai import OpenAI
+            import inference, json as _json
+            _aclient = OpenAI(api_key=os.getenv("ANTHROPIC_API_KEY"),
+                              base_url="https://api.anthropic.com/v1")
+
+            def _haiku_policy(obs):
+                msgs = [{"role": "system", "content": inference.SYSTEM_PROMPT},
+                        {"role": "user",   "content": inference.build_user_msg(obs)}]
+                try:
+                    r = _aclient.chat.completions.create(
+                        model="claude-haiku-4-5-20251001", messages=msgs,
+                        temperature=0.2, max_tokens=400)
+                    raw = (r.choices[0].message.content or "").strip()
+                    if raw.startswith("```"):
+                        raw = raw.split("```")[1]
+                        if raw.startswith("json"): raw = raw[4:]
+                    return _json.loads(raw.strip())
+                except Exception:
+                    return rule_based_policy(obs)
+            registry["claude-haiku-4-5"] = _haiku_policy
+        except Exception:
+            pass
+
+    # gpt-4o-mini via OPENAI_API_KEY (Space secret)
+    if os.getenv("OPENAI_API_KEY"):
+        try:
+            from openai import OpenAI
+            import inference, json as _json
+            _client = OpenAI()  # picks up OPENAI_API_KEY automatically
+
+            def _gpt_policy(obs):
+                msgs = [{"role": "system", "content": inference.SYSTEM_PROMPT},
+                        {"role": "user",   "content": inference.build_user_msg(obs)}]
+                try:
+                    r = _client.chat.completions.create(
+                        model="gpt-4o-mini", messages=msgs,
+                        temperature=0.2, max_tokens=400)
+                    raw = (r.choices[0].message.content or "").strip()
+                    if raw.startswith("```"):
+                        raw = raw.split("```")[1]
+                        if raw.startswith("json"): raw = raw[4:]
+                    return _json.loads(raw.strip())
+                except Exception:
+                    return rule_based_policy(obs)
+            registry["gpt-4o-mini"] = _gpt_policy
+        except Exception:
+            pass
+
+    return registry
+
+
 def build_app(policy: PolicyFn = rule_based_policy, max_turns: int = 12):
     from fastapi import FastAPI, Request
     from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 
     app = FastAPI(title="protocol-arena-spectator")
+    registry = _build_policy_registry()
 
     @app.get("/", response_class=HTMLResponse)
     def index():
@@ -537,15 +637,39 @@ def build_app(policy: PolicyFn = rule_based_policy, max_turns: int = 12):
     def list_tasks():
         return JSONResponse({"tasks": list(ALL_TASKS.keys())})
 
+    @app.get("/policies")
+    def list_policies():
+        """Frontend reads this to populate the policy dropdown. The
+        Space ships LLM-only — if neither API key is configured, this
+        returns an empty list and the UI surfaces a setup error."""
+        order = ["claude-haiku-4-5", "gpt-4o-mini"]
+        available = [p for p in order if p in registry]
+        return JSONResponse({
+            "policies": available,
+            "needs_api_key": len(available) == 0,
+            "secrets_required": ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
+        })
+
     @app.get("/events")
-    def events(task: str = "research_photo_rename", seed: int = 0):
+    def events(task: str = "research_photo_rename",
+               seed: int = 0,
+               policy_id: str = ""):
         if task not in ALL_TASKS:
             return JSONResponse({"error": f"unknown task {task!r}"},
                                 status_code=400)
+        if not registry:
+            return JSONResponse({
+                "error": "no LLM policy configured — set ANTHROPIC_API_KEY "
+                         "or OPENAI_API_KEY as a Space secret and rebuild.",
+            }, status_code=503)
+        # Default to the first available policy if none was requested or
+        # if the requested one isn't available (e.g. user clicked an old
+        # bookmarked URL referencing a removed baseline).
+        chosen = registry.get(policy_id) or next(iter(registry.values()))
         q: "queue.Queue[Any]" = queue.Queue(maxsize=64)
         threading.Thread(
             target=_run_episode,
-            args=(task, int(seed), max_turns, policy, q),
+            args=(task, int(seed), max_turns, chosen, q),
             daemon=True,
         ).start()
 
