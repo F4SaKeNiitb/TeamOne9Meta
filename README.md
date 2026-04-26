@@ -24,7 +24,7 @@ action space is literally the wire protocol.
 ## Materials
 
 - **Live demo (HF Space)**: <https://huggingface.co/spaces/Kashishshaikh/protocol-arena>
-- **Source code (GitHub)**: <https://github.com/F4SaKeNiitb/TeamOne9Meta>
+- **API docs**: <https://Kashishshaikh-protocol-arena.hf.space/docs>
  
 ---
 

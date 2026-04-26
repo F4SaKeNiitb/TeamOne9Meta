@@ -751,6 +751,127 @@
         "pre_mean": 0.0,
         "during_mean": 0.0385
       }
+    },
+    "qwen-1.5b-base": {
+      "eval_pre": {
+        "task_correctness": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 39
+        },
+        "frame_validity": {
+          "mean": 0.4423,
+          "std": 0.4092,
+          "n": 39
+        },
+        "plan_quality": {
+          "mean": 0.1622,
+          "std": 0.203,
+          "n": 39
+        },
+        "final_reward": {
+          "mean": 0.3906,
+          "std": 0.0239,
+          "n": 39
+        },
+        "brier": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 39
+        },
+        "honeypot_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 39
+        },
+        "injection_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 39
+        },
+        "n_episodes": 39
+      },
+      "eval_during": {
+        "task_correctness": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 39
+        },
+        "frame_validity": {
+          "mean": 0.3803,
+          "std": 0.3731,
+          "n": 39
+        },
+        "plan_quality": {
+          "mean": 0.1226,
+          "std": 0.1846,
+          "n": 39
+        },
+        "final_reward": {
+          "mean": 0.4372,
+          "std": 0.0736,
+          "n": 39
+        },
+        "brier": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 39
+        },
+        "honeypot_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 39
+        },
+        "injection_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 39
+        },
+        "n_episodes": 39
+      },
+      "eval_hard": {
+        "task_correctness": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 39
+        },
+        "frame_validity": {
+          "mean": 0.406,
+          "std": 0.3689,
+          "n": 39
+        },
+        "plan_quality": {
+          "mean": 0.1288,
+          "std": 0.1882,
+          "n": 39
+        },
+        "final_reward": {
+          "mean": 0.4734,
+          "std": 0.0526,
+          "n": 39
+        },
+        "brier": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 39
+        },
+        "honeypot_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 39
+        },
+        "injection_rate": {
+          "mean": 0.0,
+          "std": 0.0,
+          "n": 39
+        },
+        "n_episodes": 39
+      },
+      "drift_adjusted_success_rate": {
+        "value": 1.0,
+        "pre_mean": 0.0,
+        "during_mean": 0.0
+      }
     }
   }
 }

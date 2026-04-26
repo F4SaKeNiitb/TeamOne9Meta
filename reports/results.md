@@ -1,6 +1,6 @@
 # PROTOCOL-ARENA — Evaluation Report
 
-_Generated from `frontier.json` — 4 providers, 3 splits._
+_Generated from `frontier.json` — 7 providers, 3 splits._
 
 ## Headline table
 
@@ -8,10 +8,13 @@ Legend: `tc` = task_correctness (mean over seeds × tasks). `drift_adj` = 1 − 
 
 provider | pre.tc | during.tc | hard.tc | drift_adj | brier | hp | inj
 ---|---|---|---|---|---|---|---
-trained | 0.000 | 0.000 | 0.000 | 1.000 | 0.000 | 0.00 | 0.00
-rule_based | 0.077 | 0.077 | 0.077 | 1.000 | 0.000 | 0.00 | 0.00
+random | 0.000 | 0.000 | 0.000 | 1.000 | 0.000 | 0.18 | 0.00
 keyword | 0.077 | 0.077 | 0.077 | 1.000 | 0.000 | 0.00 | 0.00
-random | 0.000 | 0.000 | 0.000 | 1.000 | 0.000 | 0.28 | 0.00
+rule_based | 0.077 | 0.077 | 0.077 | 1.000 | 0.000 | 0.00 | 0.00
+gpt-4o-mini | 0.308 | 0.282 | 0.197 | 0.974 | 0.000 | 0.00 | 0.00
+claude-haiku-4-5 | 0.222 | 0.248 | 0.325 | 1.000 | 0.000 | 0.00 | 0.00
+trained | 0.000 | 0.038 | 0.038 | 1.000 | 0.000 | 0.00 | 0.00
+qwen-1.5b-base | 0.000 | 0.000 | 0.000 | 1.000 | 0.000 | 0.00 | 0.00
 
 ## What to look for
 

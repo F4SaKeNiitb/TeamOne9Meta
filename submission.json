@@ -1,0 +1,136 @@
+{
+  "team_name": "Kashishshaikh",
+  "agent_label": "trained",
+  "model_id": "Kashishshaikh/protocol-arena-qwen-1.5b-sft-only",
+  "checkpoint_url": "https://huggingface.co/Kashishshaikh/protocol-arena-qwen-1.5b-sft-only",
+  "policy_kind": "lora",
+  "submitted_by": "kashish.shaikh@example.com",
+  "results": {
+    "frontier_json_sha256": "98c9062ef21f7ed890a40f52209b2aa1e6a3098e6e486f522ad067e4bc880a2c",
+    "providers": {
+      "trained": {
+        "eval_pre": {
+          "task_correctness": {
+            "mean": 0.0,
+            "std": 0.0,
+            "n": 39
+          },
+          "frame_validity": {
+            "mean": 0.9169,
+            "std": 0.1554,
+            "n": 39
+          },
+          "plan_quality": {
+            "mean": 0.4466,
+            "std": 0.1354,
+            "n": 39
+          },
+          "final_reward": {
+            "mean": 0.4281,
+            "std": 0.0167,
+            "n": 39
+          },
+          "brier": {
+            "mean": 0.0,
+            "std": 0.0,
+            "n": 39
+          },
+          "honeypot_rate": {
+            "mean": 0.0,
+            "std": 0.0,
+            "n": 39
+          },
+          "injection_rate": {
+            "mean": 0.0,
+            "std": 0.0,
+            "n": 39
+          },
+          "n_episodes": 39
+        },
+        "eval_during": {
+          "task_correctness": {
+            "mean": 0.0385,
+            "std": 0.1332,
+            "n": 39
+          },
+          "frame_validity": {
+            "mean": 0.7739,
+            "std": 0.2413,
+            "n": 39
+          },
+          "plan_quality": {
+            "mean": 0.3349,
+            "std": 0.2122,
+            "n": 39
+          },
+          "final_reward": {
+            "mean": 0.4661,
+            "std": 0.0776,
+            "n": 39
+          },
+          "brier": {
+            "mean": 0.0,
+            "std": 0.0,
+            "n": 39
+          },
+          "honeypot_rate": {
+            "mean": 0.0,
+            "std": 0.0,
+            "n": 39
+          },
+          "injection_rate": {
+            "mean": 0.0,
+            "std": 0.0,
+            "n": 39
+          },
+          "n_episodes": 39
+        },
+        "eval_hard": {
+          "task_correctness": {
+            "mean": 0.0385,
+            "std": 0.1332,
+            "n": 39
+          },
+          "frame_validity": {
+            "mean": 0.2496,
+            "std": 0.2151,
+            "n": 39
+          },
+          "plan_quality": {
+            "mean": 0.0064,
+            "std": 0.0395,
+            "n": 39
+          },
+          "final_reward": {
+            "mean": 0.4814,
+            "std": 0.0613,
+            "n": 39
+          },
+          "brier": {
+            "mean": 0.0,
+            "std": 0.0,
+            "n": 39
+          },
+          "honeypot_rate": {
+            "mean": 0.0,
+            "std": 0.0,
+            "n": 39
+          },
+          "injection_rate": {
+            "mean": 0.0,
+            "std": 0.0,
+            "n": 39
+          },
+          "n_episodes": 39
+        },
+        "drift_adjusted_success_rate": {
+          "value": 1.0,
+          "pre_mean": 0.0,
+          "during_mean": 0.0385
+        }
+      }
+    }
+  },
+  "trace_samples": [],
+  "notes": "Qwen2.5-1.5B-Instruct + LoRA r=16, 2 epochs SFT on 451-row multi-policy bootstrap (scripted-expert + rule_based + keyword + random). Phase B RL was attempted but did not generalize at this model scale; shipped adapter is SFT-only. +0.074 composite score over same-architecture base."
+}
