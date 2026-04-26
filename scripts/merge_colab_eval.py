@@ -54,11 +54,33 @@ def main(argv=None) -> int:
         print(f"[merge] missing colab JSON: {args.json}", file=sys.stderr)
         return 2
 
-    new_block = json.load(open(args.json))
+    raw = json.load(open(args.json))
 
-    if not isinstance(new_block, dict) or "eval_during" not in new_block:
+    # Two accepted shapes:
+    #   1. unwrapped run_eval output: {"eval_during": {...}, ...}
+    #   2. multi-provider wrapper as written by Colab Cell 7:
+    #        {"providers": {"trained": {...}, "rule_based": {...}, ...}}
+    #      In that case extract the block matching --label.
+    if isinstance(raw, dict) and "eval_during" in raw:
+        new_block = raw
+    elif isinstance(raw, dict) and "providers" in raw:
+        providers = raw.get("providers", {}) or {}
+        if args.label not in providers:
+            print(f"[merge] {args.json} has providers={list(providers)}; "
+                  f"--label {args.label!r} not present. Use one of those names "
+                  f"or re-run Colab with that label.", file=sys.stderr)
+            return 3
+        new_block = providers[args.label]
+        if not isinstance(new_block, dict) or "eval_during" not in new_block:
+            print(f"[merge] providers[{args.label!r}] in {args.json} doesn't "
+                  f"have 'eval_during' — looks malformed.", file=sys.stderr)
+            return 3
+        print(f"[merge] extracted providers[{args.label!r}] from "
+              f"multi-provider wrapper")
+    else:
         print(f"[merge] {args.json} doesn't look like a run_eval() output "
-              f"(missing 'eval_during' key)", file=sys.stderr)
+              f"(no 'eval_during' or 'providers' key at top level)",
+              file=sys.stderr)
         return 3
 
     if os.path.exists(args.frontier):
