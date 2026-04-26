@@ -21,6 +21,13 @@ action space is literally the wire protocol.
 
 ---
 
+## Materials
+
+- **Live demo (HF Space)**: <https://huggingface.co/spaces/Kashishshaikh/protocol-arena>
+- **API docs**: <https://Kashishshaikh-protocol-arena.hf.space/docs>
+ 
+---
+
 ## Why this exists
 
 MCP (Model Context Protocol) and A2A (Agent-to-Agent) are now the default
