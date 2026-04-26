@@ -1,3 +1,15 @@
+---
+title: PROTOCOL-ARENA
+colorFrom: indigo
+colorTo: red
+sdk: docker
+app_port: 7860
+pinned: true
+license: apache-2.0
+short_description: RL gym for LLM agents speaking MCP/A2A under schema drift
+
+---
+
 # PROTOCOL-ARENA
 
 > The first OpenEnv RL gym where agents learn to **speak MCP and A2A protocol
